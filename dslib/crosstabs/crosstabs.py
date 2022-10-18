@@ -17,13 +17,14 @@ class Tab(object):
     from a single universe. It can represent itself as SQL or an in-memory DataFrame.
     '''
     
-    def __init__(self, universe, metrics, splits=None,
+    def __init__(self, universe_name, universe, metrics, splits=None,
                 max_n_splits=1, rnk=-1, connectable=None,
                 verbose=False, query_ob=None):
         ''' Initialize the Tab object.
         
         '''
         
+        self._universe_name = universe_name
         self._universe = universe
         self._metrics = metrics
         self._splits = splits
@@ -34,6 +35,17 @@ class Tab(object):
         self.connectable = None
         self.verbose = False
         self.query = query_ob
+
+    @property
+    def universe_name(self):
+        ''' Name of the universe object, used as an alias
+        Universe name must be a string.
+        '''
+        if isinstance(self._universe_name, str):
+            return self._universe_name.lower()
+        else:
+            raise TypeError("universe name must be a string")
+    
         
     @property
     def universe(self):
@@ -93,6 +105,16 @@ class Tab(object):
         else:
             string_type = 'VARCHAR'
         return ", ".join([f"CAST({split} AS {string_type}) as demo{i}" for i, split in enumerate(self.splits)])
+
+    @property
+    def splits_name(self):
+        ''' Name of the split(s) to create alias for subquery
+        '''
+        if self._splits is None:
+            return f"""{self.splits[0].replace("'", '')}""".lower()
+        else:
+            return f"""
+            {'_x_'.join([split for split in self.splits if split != "'-'"])}""".lower()
         
     @property
     def splits_name_sql(self):
@@ -141,7 +163,7 @@ class Tab(object):
             {self.splits_name_sql},
             {self.splits_sql},
             {self.metrics_sql}
-        FROM {self.universe_sql}
+        FROM {self.universe_sql} {self.universe_name}
         GROUP BY {self.by_sql}
         ORDER BY {self.by_sql}
         """
@@ -259,7 +281,7 @@ class CrossTabs(object):
             for name, universe in self.universes.items():
                 tabs[name] = OrderedDict()
                 for i, split in enumerate(self.splits):
-                    tab = Tab(universe=universe, metrics=self.metrics[name],
+                    tab = Tab(universe_name=name, universe=universe, metrics=self.metrics[name],
                              splits=split, verbose=self.verbose,
                              connectable=self.connectable, max_n_splits=self.max_n_splits,
                              rnk=i, query_ob=self.query)
@@ -279,7 +301,7 @@ class CrossTabs(object):
         for name, universe in self.universes.items():
             sql[name] = "SELECT a.* FROM ("
             
-            sql[name] += " UNION ALL ".join([f"SELECT * FROM ({self.tabs[name][str(split)].sql})" for split in self.splits])
+            sql[name] += " UNION ALL ".join([f"SELECT * FROM ({self.tabs[name][str(split)].sql}) {self.tabs[name][str(split)].splits_name}" for split in self.splits])
             
             sql[name] += f") a ORDER BY {self.by_sql};"
         
