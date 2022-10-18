@@ -94,7 +94,7 @@ def get_engine(creds=None, verbose=False):
             )
 
     else:
-        return session.get_db_engine(creds)
+        raise NotImplementedError("get_engine() not implemented of these credentials.")
 
 
 
