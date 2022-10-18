@@ -19,5 +19,6 @@ setuptools.setup(
         'matplotlib',
         'typing',
         'sqlalchemy',
+        'python-dotenv',
     ]
 )
