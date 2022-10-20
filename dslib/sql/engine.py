@@ -57,9 +57,9 @@ class EngineContext:
 
     def __exit__(
         self,
-        # exc_type: Optional[Type[BaseException]],
-        # exc_val: Optional[BaseException],
-        # exc_tb: Optional[TracebackType],
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
     ) -> bool:
     #     if exc_tb is not None:
     #         self.con.rollback()
