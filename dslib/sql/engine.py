@@ -22,7 +22,7 @@ class EngineContext:
             host = os.environ[f"{self.name}_HOST"]
             dbname = os.environ[f"{self.name}_DB"]
             port = os.environ[f"{self.name}_PORT"]
-            dialect = os.environ[f"{self.name}_DIALECT"]
+            dialect = os.environ[f"{self.name}_TYPE"]
         except KeyError as key_error:
             raise KeyError(
                 f"""Credentials associated with {self.name} not found!"""
