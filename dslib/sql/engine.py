@@ -36,10 +36,6 @@ class EngineContext:
                 f"{dialect}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
             )
 
-        print(f"""
-            Creating sqlalchemy engine at {self.engine_str}
-            """)
-
         self.engine = sqlalchemy.create_engine(self.engine_str)
         self.con = None
 
@@ -62,6 +58,6 @@ class EngineContext:
         exc_tb: Optional[TracebackType],
     ) -> bool:
     #     if exc_tb is not None:
-    #         self.con.rollback()
+    #         self.con.rollback() -- issues with sqlalchemy-redshfit
 
         self.con.close()
