@@ -5,7 +5,7 @@ from types import TracebackType
 
 import sqlalchemy
 from sqlalchemy.engine import Connection
-from urllib import quote_plus as urlquote
+from urllib.parse import quote_plus as urlquote
 
 
 @dataclass
