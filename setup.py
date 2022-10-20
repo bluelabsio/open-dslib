@@ -18,7 +18,8 @@ setuptools.setup(
         'numpy',
         'matplotlib',
         'typing',
-        'sqlalchemy',
+        'sqlalchemy>=1.4.0',
         'python-dotenv',
+        'psycopg2',
     ]
 )
