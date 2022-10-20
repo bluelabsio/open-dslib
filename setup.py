@@ -20,6 +20,6 @@ setuptools.setup(
         'typing',
         'sqlalchemy>=1.4.0',
         'python-dotenv',
-        'psycopg2',
+        'psycopg2-binary',
     ]
 )
