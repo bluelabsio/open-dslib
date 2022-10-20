@@ -5,6 +5,7 @@ from types import TracebackType
 
 import sqlalchemy
 from sqlalchemy.engine import Connection
+from urllib import quote_plus as urlquote
 
 
 @dataclass
@@ -29,10 +30,10 @@ class EngineContext:
             ) from key_error
 
         if self.driver is not None:
-            self.engine_str = f"{dialect}+{self.driver}://{user}:{password}@{host}:{port}/{dbname}"
+            self.engine_str = f"{dialect}+{self.driver}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
         else:
             self.engine_str = (
-                f"{dialect}://{user}:{password}@[{host}:{port}/{dbname}"
+                f"{dialect}://{user}:{urlquote(password)}@[{host}:{port}/{dbname}"
             )
 
         print(f"""
