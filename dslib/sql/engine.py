@@ -60,7 +60,7 @@ class EngineContext:
         # exc_type: Optional[Type[BaseException]],
         # exc_val: Optional[BaseException],
         # exc_tb: Optional[TracebackType],
-    # ) -> bool:
+    ) -> bool:
     #     if exc_tb is not None:
     #         self.con.rollback()
 
