@@ -18,12 +18,12 @@ class Tab(object):
     '''
     
     def __init__(self, universe_name, universe, metrics, splits=None,
-                max_n_splits=1, rnk=-1, connectable=None,
+                max_n_splits=1, rnk=-1,
                 verbose=False, query_ob=None):
         ''' Initialize the Tab object.
         
         '''
-        
+
         self._universe_name = universe_name
         self._universe = universe
         self._metrics = metrics
@@ -32,9 +32,9 @@ class Tab(object):
         
         self.rnk = rnk # Helps sort the crosstabs.
         self.max_n_splits = max_n_splits
-        self.connectable = None
         self.verbose = False
         self.query = query_ob
+    
 
     @property
     def universe_name(self):
@@ -172,8 +172,8 @@ class Tab(object):
     
 class CrossTabs(object):
     
-    def __init__(self, universes=None, universe=None, metrics=None, splits=None,
-                verbose=False, connectable=None, horizontal=True,
+    def __init__(self, database_name=None, db_driver=None, universes=None, universe=None, metrics=None, splits=None,
+                verbose=False, horizontal=True,
                 yaml_file=None, query_ob=None):
 
         # Load configuration if it's specified.
@@ -184,6 +184,8 @@ class CrossTabs(object):
             return None
             
         # Arguments:
+        self._database_name = database_name
+        self._db_driver = db_driver
         # Accept one argument for universe(s), but not both
         if universe is not None and universes is not None:
             raise ValueError("Please provide either a 'universe' argument or a 'universes' argument.")
@@ -194,7 +196,6 @@ class CrossTabs(object):
         self._metrics = metrics
         self._splits = splits
         self.verbose = verbose
-        self.connectable = connectable
         self.horizontal = horizontal
 
         # Initializing State
@@ -216,7 +217,21 @@ class CrossTabs(object):
                 raise TypeError("Please provide a name for your csv.")
         
         self.df.to_csv(name)
-            
+
+
+    @property
+    def database_name(self):
+        if isinstance(self._database_name, str):
+            return self._database_name
+        else:
+            raise TypeError("database_name must be a string")
+
+    @property
+    def db_driver(self):
+        if isinstance(self._db_driver, str):
+            return self._db_driver
+        else:
+            raise TypeError("db_driver must be a string")
             
     @property
     def universes(self):
@@ -283,7 +298,7 @@ class CrossTabs(object):
                 for i, split in enumerate(self.splits):
                     tab = Tab(universe_name=name, universe=universe, metrics=self.metrics[name],
                              splits=split, verbose=self.verbose,
-                             connectable=self.connectable, max_n_splits=self.max_n_splits,
+                             max_n_splits=self.max_n_splits,
                              rnk=i, query_ob=self.query)
                     tabs[name][str(split)] = tab
             self._tabs = tabs
@@ -314,7 +329,7 @@ class CrossTabs(object):
     def df(self):
         if self._df is None:
             # Populate Tab DFs
-            dfs = [self.query.execute(sql, connectable=self.connectable) for universe,sql in self.sql.items()]
+            dfs = [self.query.execute(sql, database_name=self.database_name, driver=self.db_driver) for universe,sql in self.sql.items()]
 
             # Return simple DF if only one:
             if len(dfs) == 1:
