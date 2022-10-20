@@ -14,7 +14,7 @@ class EngineContext:
     """
 
     name: str
-    driver: str = field(default=None)
+    driver: str = field(default=None) #TO DO
 
     def __post_init__(self):
         try:
@@ -58,6 +58,6 @@ class EngineContext:
         exc_tb: Optional[TracebackType],
     ) -> bool:
     #     if exc_tb is not None:
-    #         self.con.rollback() -- issues with sqlalchemy-redshfit
+    #         self.con.rollback()  # issues with sqlalchemy-redshfit
 
         self.con.close()
