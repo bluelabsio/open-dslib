@@ -8,7 +8,7 @@ Contains crosstab functions used for model assessment.
 -------------
 """
 
-from .assessment import *
+from .crosstabs import *
 
 
 
