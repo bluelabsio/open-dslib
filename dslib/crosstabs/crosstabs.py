@@ -179,7 +179,7 @@ class CrossTabs(object):
         # Load configuration if it's specified.
         if yaml_file is not None:
             config = load_yaml(yaml_file)
-            self.__init__(**config)
+            self.__init__(database_name, **config)
             self.yaml_file = yaml_file
             return None
             
