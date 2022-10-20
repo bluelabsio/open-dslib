@@ -1,6 +1,6 @@
 """
 ######
-Crosstabs
+Assessment
 ######
 
 Contains crosstab functions used for model assessment.
@@ -8,7 +8,7 @@ Contains crosstab functions used for model assessment.
 -------------
 """
 
-from .crosstabs import *
+from .assessment import *
 
 
 
