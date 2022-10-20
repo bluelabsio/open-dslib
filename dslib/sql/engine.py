@@ -33,7 +33,7 @@ class EngineContext:
             self.engine_str = f"{dialect}+{self.driver}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
         else:
             self.engine_str = (
-                f"{dialect}://{user}:{urlquote(password)}@[{host}:{port}/{dbname}"
+                f"{dialect}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
             )
 
         print(f"""
