@@ -32,7 +32,7 @@ def execute(query, database_name='DB', driver=None, verbose=False):
 
     with EngineContext(name=database_name, driver=driver) as engine:
         connection = engine.create_connection()
-        result = connection.execute(query)
+        results = connection.execute(query)
 
         # The anon part is necessary because vertica's driver doesn't return a rowcount, and returns a column for drop/create statements
         if len(results.keys()) == 0 or (len(results.keys()) == 1 and results.keys()[0] == 'anon_1'):
