@@ -8,7 +8,7 @@ import pandas as pd
 
 
 
-def execute(query, database_name='DB', driver=None, verbose=False):
+def execute(query, database_name='DB', verbose=False):
     """
     Convenience function that returns query results. Returns None if no results are returned.
     Returns an empty dataframe with column names if there are column names but no rows, and returns
@@ -30,7 +30,7 @@ def execute(query, database_name='DB', driver=None, verbose=False):
 
     """
 
-    with EngineContext(name=database_name, driver=driver) as engine:
+    with EngineContext(name=database_name) as engine:
         connection = engine.create_connection()
         results = connection.execute(query)
 

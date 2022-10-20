@@ -172,7 +172,7 @@ class Tab(object):
     
 class CrossTabs(object):
     
-    def __init__(self, database_name, db_driver=None, universes=None, universe=None, metrics=None, splits=None,
+    def __init__(self, database_name, universes=None, universe=None, metrics=None, splits=None,
                 verbose=False, horizontal=True,
                 yaml_file=None, query_ob=None):
 
@@ -185,7 +185,6 @@ class CrossTabs(object):
             
         # Arguments:
         self._database_name = database_name
-        self._db_driver = db_driver
         # Accept one argument for universe(s), but not both
         if universe is not None and universes is not None:
             raise ValueError("Please provide either a 'universe' argument or a 'universes' argument.")
@@ -227,13 +226,6 @@ class CrossTabs(object):
             return 'DB'
         else:
             raise TypeError("database_name must be a string")
-
-    @property
-    def db_driver(self):
-        if isinstance(self._db_driver, str) or self._db_driver is None:
-            return self._db_driver
-        else:
-            raise TypeError("db_driver must either be a string or None.")
             
     @property
     def universes(self):
@@ -331,7 +323,7 @@ class CrossTabs(object):
     def df(self):
         if self._df is None:
             # Populate Tab DFs
-            dfs = [self.query.execute(sql, database_name=self.database_name, driver=self.db_driver) for universe,sql in self.sql.items()]
+            dfs = [self.query.execute(sql, database_name=self.database_name) for universe,sql in self.sql.items()]
 
             # Return simple DF if only one:
             if len(dfs) == 1:
