@@ -35,6 +35,10 @@ class EngineContext:
                 f"{dialect}://{user}:{password}@[{host}:{port}/{dbname}"
             )
 
+        print(f"""
+            Creating sqlalchemy engine at {self.engine_str}
+            """)
+
         self.engine = sqlalchemy.create_engine(self.engine_str)
         self.con = None
 
