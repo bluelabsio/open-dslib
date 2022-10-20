@@ -172,7 +172,7 @@ class Tab(object):
     
 class CrossTabs(object):
     
-    def __init__(self, database_name=None, db_driver=None, universes=None, universe=None, metrics=None, splits=None,
+    def __init__(self, database_name, db_driver=None, universes=None, universe=None, metrics=None, splits=None,
                 verbose=False, horizontal=True,
                 yaml_file=None, query_ob=None):
 
@@ -223,15 +223,17 @@ class CrossTabs(object):
     def database_name(self):
         if isinstance(self._database_name, str):
             return self._database_name
+        elif self._database_name is None:
+            return 'DB'
         else:
             raise TypeError("database_name must be a string")
 
     @property
     def db_driver(self):
-        if isinstance(self._db_driver, str):
+        if isinstance(self._db_driver, str) or self._db_driver is None:
             return self._db_driver
         else:
-            raise TypeError("db_driver must be a string")
+            raise TypeError("db_driver must either be a string or None.")
             
     @property
     def universes(self):
