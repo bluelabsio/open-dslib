@@ -17,13 +17,14 @@ class Tab(object):
     from a single universe. It can represent itself as SQL or an in-memory DataFrame.
     '''
     
-    def __init__(self, universe, metrics, splits=None,
-                max_n_splits=1, rnk=-1, connectable=None,
+    def __init__(self, universe_name, universe, metrics, splits=None,
+                max_n_splits=1, rnk=-1,
                 verbose=False, query_ob=None):
         ''' Initialize the Tab object.
         
         '''
-        
+
+        self._universe_name = universe_name
         self._universe = universe
         self._metrics = metrics
         self._splits = splits
@@ -31,9 +32,20 @@ class Tab(object):
         
         self.rnk = rnk # Helps sort the crosstabs.
         self.max_n_splits = max_n_splits
-        self.connectable = None
         self.verbose = False
         self.query = query_ob
+    
+
+    @property
+    def universe_name(self):
+        ''' Name of the universe object, used as an alias
+        Universe name must be a string.
+        '''
+        if isinstance(self._universe_name, str):
+            return self._universe_name.lower()
+        else:
+            raise TypeError("universe name must be a string")
+    
         
     @property
     def universe(self):
@@ -93,6 +105,16 @@ class Tab(object):
         else:
             string_type = 'VARCHAR'
         return ", ".join([f"CAST({split} AS {string_type}) as demo{i}" for i, split in enumerate(self.splits)])
+
+    @property
+    def splits_name(self):
+        ''' Name of the split(s) to create alias for subquery
+        '''
+        if self._splits is None:
+            return f"""{self.splits[0].replace("'", '')}""".lower()
+        else:
+            return f"""
+            {'_x_'.join([split for split in self.splits if split != "'-'"])}""".lower()
         
     @property
     def splits_name_sql(self):
@@ -141,7 +163,7 @@ class Tab(object):
             {self.splits_name_sql},
             {self.splits_sql},
             {self.metrics_sql}
-        FROM {self.universe_sql}
+        FROM {self.universe_sql} {self.universe_name}
         GROUP BY {self.by_sql}
         ORDER BY {self.by_sql}
         """
@@ -150,18 +172,19 @@ class Tab(object):
     
 class CrossTabs(object):
     
-    def __init__(self, universes=None, universe=None, metrics=None, splits=None,
-                verbose=False, connectable=None, horizontal=True,
+    def __init__(self, database_name, universes=None, universe=None, metrics=None, splits=None,
+                verbose=False, horizontal=True,
                 yaml_file=None, query_ob=None):
 
         # Load configuration if it's specified.
         if yaml_file is not None:
             config = load_yaml(yaml_file)
-            self.__init__(**config)
+            self.__init__(database_name, **config)
             self.yaml_file = yaml_file
             return None
             
         # Arguments:
+        self._database_name = database_name
         # Accept one argument for universe(s), but not both
         if universe is not None and universes is not None:
             raise ValueError("Please provide either a 'universe' argument or a 'universes' argument.")
@@ -172,7 +195,6 @@ class CrossTabs(object):
         self._metrics = metrics
         self._splits = splits
         self.verbose = verbose
-        self.connectable = connectable
         self.horizontal = horizontal
 
         # Initializing State
@@ -194,7 +216,16 @@ class CrossTabs(object):
                 raise TypeError("Please provide a name for your csv.")
         
         self.df.to_csv(name)
-            
+
+
+    @property
+    def database_name(self):
+        if isinstance(self._database_name, str):
+            return self._database_name
+        elif self._database_name is None:
+            return 'DB'
+        else:
+            raise TypeError("database_name must be a string")
             
     @property
     def universes(self):
@@ -259,9 +290,9 @@ class CrossTabs(object):
             for name, universe in self.universes.items():
                 tabs[name] = OrderedDict()
                 for i, split in enumerate(self.splits):
-                    tab = Tab(universe=universe, metrics=self.metrics[name],
+                    tab = Tab(universe_name=name, universe=universe, metrics=self.metrics[name],
                              splits=split, verbose=self.verbose,
-                             connectable=self.connectable, max_n_splits=self.max_n_splits,
+                             max_n_splits=self.max_n_splits,
                              rnk=i, query_ob=self.query)
                     tabs[name][str(split)] = tab
             self._tabs = tabs
@@ -279,7 +310,7 @@ class CrossTabs(object):
         for name, universe in self.universes.items():
             sql[name] = "SELECT a.* FROM ("
             
-            sql[name] += " UNION ALL ".join([f"SELECT * FROM ({self.tabs[name][str(split)].sql})" for split in self.splits])
+            sql[name] += " UNION ALL ".join([f"SELECT * FROM ({self.tabs[name][str(split)].sql}) {self.tabs[name][str(split)].splits_name}" for split in self.splits])
             
             sql[name] += f") a ORDER BY {self.by_sql};"
         
@@ -292,7 +323,7 @@ class CrossTabs(object):
     def df(self):
         if self._df is None:
             # Populate Tab DFs
-            dfs = [self.query.execute(sql, connectable=self.connectable) for universe,sql in self.sql.items()]
+            dfs = [self.query.execute(sql, database_name=self.database_name) for universe,sql in self.sql.items()]
 
             # Return simple DF if only one:
             if len(dfs) == 1:

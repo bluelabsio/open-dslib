@@ -1,129 +1,63 @@
-"""
-Get an appropriate BlueLabs Joblib or SQL Alchemy Engine
-"""
-import getpass
 import os
-import warnings
+from dataclasses import dataclass, field
+from typing import Optional, Type
+from types import TracebackType
 
-# with warnings.catch_warnings():
-#     warnings.filterwarnings("ignore")
-#     from records_mover import Session
+import sqlalchemy
+from sqlalchemy.engine import Connection
+from urllib.parse import quote_plus as urlquote
 
-import sqlalchemy as sa
 
-options = dict()
-options['default_database'] = 'default'
-
-def set_engine(creds='default'):
-    options['default_database'] = creds
-
-def get_engine(creds=None, verbose=False):
+@dataclass
+class EngineContext:
+    """sqlalchemy engine context manager. Pulls connection info from the environment.
     """
 
-    Args:
-        creds ():
-        verbose ():
+    name: str
+    driver: str = field(default=None) #TO DO
 
-    https://docs.sqlalchemy.org/en/latest/core/engines.html
+    def __post_init__(self):
+        try:
+            user = os.environ[f"{self.name}_USER"]
+            password = os.environ[f"{self.name}_PW"]
+            host = os.environ[f"{self.name}_HOST"]
+            dbname = os.environ[f"{self.name}_DB"]
+            port = os.environ[f"{self.name}_PORT"]
+            dialect = os.environ[f"{self.name}_TYPE"]
+        except KeyError as key_error:
+            raise KeyError(
+                f"""Credentials associated with {self.name} not found!"""
+            ) from key_error
 
-    Returns:
-
-    """
-
-    if creds == None:
-        creds = options['default_database']
-
-    # session = Session()
-    # if creds == 'default':
-    #     return session.get_default_db_engine()
-    if getpass.getuser() == 'jovyan':
-        if creds == 'dnc':
-            driver = 'vertica+vertica_python'
-            username = os.environ.get('DNC_DB_USERNAME')
-            password = os.environ.get('DNC_DB_PASSWORD')
-            host = os.environ.get('DNC_DB_HOST')
-            port = os.environ.get('DNC_DB_PORT')
-            database = os.environ.get('DNC_DB_DATABASE')
-            return sa.create_engine(
-                f"{driver}://{username}:{password}@{host}:{port}/{database}",
-                echo=verbose
-            )
-        elif creds == 'redshift':
-            driver = 'redshift'
-            username = os.environ.get('REDSHIFT_DB_USERNAME')
-            password = os.environ.get('REDSHIFT_DB_PASSWORD')
-            host = os.environ.get('REDSHIFT_DB_HOST')
-            port = os.environ.get('REDSHIFT_DB_PORT')
-            database = os.environ.get('REDSHIFT_DB_DATABASE')
-            return sa.create_engine(
-                f"{driver}://{username}:{password}@{host}:{port}/{database}",
-                echo=verbose
-            )
-        elif creds == 'influencers':
-            driver = 'redshift'
-            username = os.environ.get('INFLUENCERS_DB_USERNAME')
-            password = os.environ.get('INFLUENCERS_DB_PASSWORD')
-            host = os.environ.get('INFLUENCERS_DB_HOST')
-            port = os.environ.get('INFLUENCERS_DB_PORT')
-            database = os.environ.get('INFLUENCERS_DB_DATABASE')
-            return sa.create_engine(
-                f"{driver}://{username}:{password}@{host}:{port}/{database}",
-                echo=verbose
-            )
-        elif creds == 'postgres':
-            driver = 'postgresql'
-            username = os.environ.get('POSTGRES_DB_USERNAME')
-            password = os.environ.get('POSTGRES_DB_PASSWORD')
-            host = os.environ.get('POSTGRES_DB_HOST')
-            port = os.environ.get('POSTGRES_DB_PORT')
-            database = os.environ.get('POSTGRES_DB_DATABASE')
-            return sa.create_engine(
-                f"{driver}://{username}:{password}@{host}:{port}/{database}",
-                echo=verbose
-            )
-        elif creds == 'default':
-            driver = 'redshift'
-            username = os.environ.get('DB_USERNAME')
-            password = os.environ.get('DB_PASSWORD')
-            host = os.environ.get('DB_HOST')
-            port = os.environ.get('DB_PORT')
-            database = os.environ.get('DB_DATABASE')
-            return sa.create_engine(
-                f"{driver}://{username}:{password}@{host}:{port}/{database}",
-                echo=verbose
+        if self.driver is not None:
+            self.engine_str = f"{dialect}+{self.driver}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
+        else:
+            self.engine_str = (
+                f"{dialect}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
             )
 
-    else:
-        raise NotImplementedError("get_engine() not implemented of these credentials.")
+        self.engine = sqlalchemy.create_engine(self.engine_str)
+        self.con = None
 
+    def create_connection(self) -> Connection:
+        """Create a connection with instantiated credentials.
+        Returns:
+            Connection: a sqlalchemy connection to the database.
+        """
+        self.con = self.engine.connect()
 
+        return self.con
 
-"""
-In case you need to reference this to make your own engine at some point:
-import sqlalchemy as sa
-import os
+    def __enter__(self):
+        return self
 
-def get_engine(creds='default', verbose=False):
-    ''' Returns a SQL Alchemy Engine
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
+    #     if exc_tb is not None:
+    #         self.con.rollback()  # issues with sqlalchemy-redshfit
 
-    https://docs.sqlalchemy.org/en/latest/core/engines.html
-
-    TODO: Decide on conventions for specifying multiple sets of credentials
-    in your environment. For now, only default will work, using BL's standard
-    credential names.
-    '''
-    if creds == 'default':
-        username = os.environ.get('DB_USERNAME')
-        password = os.environ.get('DB_PASSWORD')
-        host = os.environ.get('DB_HOST')
-        port = os.environ.get('DB_PORT')
-        database = os.environ.get('DB_DATABASE')
-
-    else:
-        raise NotImplementedError
-
-    return sa.create_engine(
-        f"redshift://{username}:{password}@{host}:{port}/{database}",
-        echo=verbose
-    )
-"""
+        self.con.close()
