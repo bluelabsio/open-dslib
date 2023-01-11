@@ -57,7 +57,7 @@ class EngineContext:
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> bool:
-#         if exc_tb is not None:
-#                 self.con.rollback()  # issues with sqlalchemy-redshfit
+        if exc_tb is not None:
+                self.con.rollback()  # issues with sqlalchemy-redshfit
 
         self.con.close()
