@@ -63,6 +63,24 @@ xtabs = xt.CrossTabs(
 xtabs.df
 ```
 
+The config should be formatted like:
+
+```
+universes:
+    'Table1': (SELECT * FROM schema.table_name_1)
+    'Table2': (SELECT * FROM schema.table_name_2)
+    
+metrics:
+    - count(*)
+    - COUNT(*)::FLOAT/NULLIF(SUM(COUNT(*)) OVER(), 0) prop
+    
+splits:
+    - gender
+    - race
+    - - gender
+      - race  #(This can be used to cross two variables together)
+```
+
 #### Naming a Universe
 
 When providing multiple universes, provide a name for each universe that it can be referenced by. Ensure that you do not use any reserved words that might have some meaning int he SQL dialect you are working with. 
