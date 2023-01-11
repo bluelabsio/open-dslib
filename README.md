@@ -16,12 +16,12 @@ pip install git+https://github.com/bluelabsio/open-dslib
 The package picks up database credentials from the environment. A reference to the database name - eg. DATABASE - is required, and all environment variables must be named accordingly:
 
 ```
-- {DATABASE}\_DB - refers to the name of the database to be queried
-- {DATABASE}\_HOST - refers to the database host
-- {DATABASE}\_PORT - refers to the database port
-- {DATABASE}\_USER - refers to the database user making the connection
-- {DATABASE}\_PW - refers to the password for the database user who is making the connection
-- {DATABASE}\_TYPE - refers to the database dialect
+- {DATABASE}_DB - refers to the name of the database to be queried
+- {DATABASE}_HOST - refers to the database host
+- {DATABASE}_PORT - refers to the database port
+- {DATABASE}_USER - refers to the database user making the connection
+- {DATABASE}_PW - refers to the password for the database user who is making the connection
+- {DATABASE}_TYPE - refers to the database dialect
 ```
 
 #### Creating Crosstabs
