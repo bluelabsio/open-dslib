@@ -83,7 +83,7 @@ splits:
 
 #### Naming a Universe
 
-When providing multiple universes, provide a name for each universe that it can be referenced by. Ensure that you do not use any reserved words that might have some meaning int he SQL dialect you are working with. 
+When providing multiple universes, provide a name for each universe that it can be referenced by. Ensure that you do not use any reserved words that might have some meaning in the SQL dialect you are working with. 
 
 Examples of reserved words:
 ```
