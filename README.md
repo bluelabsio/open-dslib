@@ -34,7 +34,7 @@ Crosstabs can be created in two ways:
 import dslib.assessment.crosstabs as xt
 
 xtabs = xt.CrossTabs(
-    database_name = 'DATABASE',
+    database_name = '{DATABASE}',
     universe="(SELECT * FROM schema.table_name LIMIT 100000)",
     metrics=[
         "count(*)",
@@ -56,7 +56,7 @@ xtabs.df
 import dslib.assessment.crosstabs as xt
 
 xtabs = xt.CrossTabs(
-    database_name = 'DATABASE',
+    database_name = '{DATABASE}',
     yaml_file='example_config.yaml'
 )
 
