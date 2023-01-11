@@ -67,8 +67,8 @@ The config should be formatted like:
 
 ```
 universes:
-    'Table1': (SELECT * FROM schema.table_name_1)
-    'Table2': (SELECT * FROM schema.table_name_2)
+    'table1': (SELECT * FROM schema.table_name_1)
+    'table2': (SELECT * FROM schema.table_name_2)
     
 metrics:
     - count(*)
