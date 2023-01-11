@@ -21,5 +21,6 @@ setuptools.setup(
         'sqlalchemy>=1.4.0',
         'python-dotenv',
         'psycopg2-binary',
+        'sqlalchemy-redshift',
     ]
 )
