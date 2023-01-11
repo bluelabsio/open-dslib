@@ -43,7 +43,7 @@ xtabs = xt.CrossTabs(
     splits=[
         "gender",
         "race",
-        ["gender", "race"]
+        ["gender", "race"] #(This can be used to cross two variables together)
     ]
 )
 
