@@ -30,10 +30,10 @@ class EngineContext:
             ) from key_error
 
         if self.driver is not None:
-            self.engine_str = f"{dialect}+{self.driver}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
+            self.engine_str = f"{dialect}+{self.driver}://{urlquote(user)}:{urlquote(password)}@{host}:{port}/{dbname}"
         else:
             self.engine_str = (
-                f"{dialect}://{user}:{urlquote(password)}@{host}:{port}/{dbname}"
+                f"{dialect}://{urlquote(user)}:{urlquote(password)}@{host}:{port}/{dbname}"
             )
 
         self.engine = sqlalchemy.create_engine(self.engine_str)
