@@ -1,5 +1,12 @@
 # Auto-generated combinations (cube/rollup) instead of an explicit groupset list.
 # Maps to CrosstabSpec.groupby -> CubeSpec, expanded via expand_to_groupsets().
+#
+# NOT YET IMPLEMENTED (M6): CubeSpec doesn't exist yet -- only GroupBySpec's
+# "explicit" shape is built (M1). This file documents the intended M6 shape; as of M4,
+# spec models reject unrecognized fields (spec/_base.py), so `CrosstabSpec.model_validate`
+# now correctly fails on `groupby.type: cube` here rather than silently ignoring it.
+# `options.cardinality_guardrail` below is similarly aspirational -- `options` accepts
+# arbitrary keys (dict[str, Any]) so it won't fail validation, but nothing reads it yet.
 
 source:
   type: csv

@@ -1,9 +1,11 @@
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
+
+from crosstab_tool.spec._base import StrictModel
 
 
-class GroupBySpec(BaseModel):
+class GroupBySpec(StrictModel):
     """An explicit, user-defined list of groupsets, each reported as its own crosstab."""
 
     type: Literal["explicit"] = "explicit"

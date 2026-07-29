@@ -57,3 +57,25 @@ def test_rejects_duplicate_column_within_a_groupset():
         CrosstabSpec.model_validate(
             _base_spec_dict(groupby={"type": "explicit", "groups": [["region", "region"]]})
         )
+
+
+def test_rejects_unknown_top_level_field():
+    with pytest.raises(ValidationError, match="extra_forbidden|Extra inputs"):
+        CrosstabSpec.model_validate(_base_spec_dict(not_a_real_field=True))
+
+
+def test_rejects_unknown_field_on_nested_source_spec():
+    # Regression test: pydantic silently drops unrecognized fields by default, which
+    # would let e.g. a typo'd or not-yet-implemented config key (like the `sampling`
+    # block sketched in docs/POLARS_SCALE.md) do nothing instead of erroring.
+    with pytest.raises(ValidationError, match="extra_forbidden|Extra inputs"):
+        CrosstabSpec.model_validate(
+            _base_spec_dict(
+                source={
+                    "type": "sql",
+                    "connection": "sqlite:///x.db",
+                    "query": "SELECT 1",
+                    "sampling": {"strategy": "stratified"},
+                }
+            )
+        )

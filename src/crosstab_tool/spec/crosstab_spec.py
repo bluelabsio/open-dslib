@@ -1,14 +1,15 @@
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
+from crosstab_tool.spec._base import StrictModel
 from crosstab_tool.spec.comparison_spec import ComparisonSpec
 from crosstab_tool.spec.groupby_spec import GroupBySpec
 from crosstab_tool.spec.source_spec import DataSourceSpec
 from crosstab_tool.spec.stat_spec import StatSpec
 
 
-class CrosstabSpec(BaseModel):
+class CrosstabSpec(StrictModel):
     """The central, engine-agnostic contract: what to compute and against what data.
 
     Config files (YAML/JSON) are a direct serialization of this model; the Python API

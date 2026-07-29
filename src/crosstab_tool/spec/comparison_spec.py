@@ -1,7 +1,8 @@
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
+from crosstab_tool.spec._base import StrictModel
 from crosstab_tool.spec.source_spec import DataSourceSpec
 
 # NB: Optional[X] / Union[X, Y] (not `X | Y`) throughout this module for pydantic fields
@@ -9,7 +10,7 @@ from crosstab_tool.spec.source_spec import DataSourceSpec
 # runtime annotation resolution requires even with `from __future__ import annotations`.
 
 
-class ColumnBaselineSpec(BaseModel):
+class ColumnBaselineSpec(StrictModel):
     """The counterfactual score lives in another column of the SAME source.
 
     Inherently row-aligned -> paired comparison.
@@ -19,7 +20,7 @@ class ColumnBaselineSpec(BaseModel):
     column: str
 
 
-class SourceBaselineSpec(BaseModel):
+class SourceBaselineSpec(StrictModel):
     """The counterfactual score lives in a separate dataset.
 
     join_keys set -> paired comparison after an inner join on those keys.
@@ -39,7 +40,7 @@ BaselineSpec = Annotated[
 ]
 
 
-class ComparisonSpec(BaseModel):
+class ComparisonSpec(StrictModel):
     """Optional counterfactual/baseline comparison for a single score column."""
 
     column: str

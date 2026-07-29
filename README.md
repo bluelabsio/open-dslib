@@ -10,7 +10,10 @@ strategy and design decisions.
 
 ## Status
 
-Early scaffolding (M0). See the implementation plan for milestone sequencing.
+M0-M4 complete: core spec + Polars file engine + basic stats, the in-memory DataFrame
+adapter, counterfactual/baseline comparison, and the SQL source. See
+`docs/implementation-plan.md` for milestone sequencing. Not yet built: the CLI (M5),
+cube/auto-groupby (M6), and exporters/extensibility polish (M7).
 
 ## Install (dev)
 
@@ -21,11 +24,12 @@ pip install -e ".[dev]"
 ## Usage
 
 ```python
-from crosstab_tool import run_crosstab
+from crosstab_tool import run_crosstab, CrosstabSpec
 
-result = run_crosstab(spec)
+result = run_crosstab(CrosstabSpec.model_validate({...}))
 ```
 
-```bash
-xtab run --config examples/configs/explicit_groupbys.yaml
-```
+The `xtab` CLI (referenced in `examples/notebooks/`) is the M5 target interface and
+isn't built yet -- for now, `CrosstabSpec` is constructed directly (or via
+`CrosstabSpec.model_validate(yaml.safe_load(...))`, since the YAML files in
+`examples/configs/` already round-trip against the real spec model).

@@ -34,6 +34,7 @@ dev = [
     "mypy",
     "pre-commit",
     "pandas>=2.0",  # exercises PandasSource in tests, even though it's an optional runtime extra
+    "connectorx>=0.3",  # exercises SQLSource in tests, even though it's an optional runtime extra
 ]
 
 [project.scripts]
