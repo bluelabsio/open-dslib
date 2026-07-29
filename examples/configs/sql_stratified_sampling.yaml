@@ -1,0 +1,48 @@
+# SQL warehouse source at 100M+ row scale. SQLSource pulls rows client-side via
+# ConnectorX (no GROUP BY pushdown in v1 — see docs/POLARS_SCALE.md), so this
+# example uses the stratified-sampling mitigation instead of a full unsampled pull.
+
+source:
+  type: sql
+  connection: "snowflake://analytics_role@myorg-prod/SCORES_DB/PUBLIC"
+  query: >
+    SELECT entity_id, region, product, age_bucket, model_score
+    FROM scored_population
+    WHERE score_date = '2026-07-28'
+
+  # Floor-then-cap stratified sampling, compiled by SQLSource into the two-query
+  # pattern (group-count query + partitioned row-numbering query) described in
+  # docs/POLARS_SCALE.md, and pushed to the warehouse before ConnectorX pulls
+  # anything back.
+  sampling:
+    strategy: stratified
+    by: [region, product, age_bucket]   # stratify on the finest groupset below
+    min_per_group: 100_000              # groups at/under this size: take all rows
+    target_total_rows: 50_000_000       # groups above the floor: capped/subsampled toward this total
+    method: hash                        # deterministic (reproducible) rather than ORDER BY RANDOM()
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+    - [region, product, age_bucket]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.9
+
+options:
+  streaming: true
+  # NOTE: stats above are sample-level, not population-reweighted (see
+  # docs/POLARS_SCALE.md). count/min/max reflect the sample for any group
+  # that was subsampled above min_per_group.

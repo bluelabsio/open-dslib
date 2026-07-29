@@ -1,0 +1,45 @@
+# Explicit groupby list against a local Parquet file.
+# Maps to CrosstabSpec: source, score_columns, groupby (GroupBySpec), stats, filters.
+
+source:
+  type: parquet
+  path: s3://my-bucket/model-scores/2026-07/*.parquet   # local paths work identically
+
+score_columns:
+  - model_score
+
+# Each inner list is one groupset, computed and reported as its own crosstab.
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+    - [age_bucket]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+  - name: std
+    column: model_score
+  - name: min
+    column: model_score
+  - name: max
+    column: model_score
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.5
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.9
+
+# Polars boolean expression strings, ANDed together before grouping.
+filters:
+  - "model_score is not null"
+  - "region != 'UNKNOWN'"
+
+options:
+  streaming: true

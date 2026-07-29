@@ -1,0 +1,35 @@
+# Counterfactual comparison, paired case: baseline score lives in another column
+# of the SAME source (e.g. a prior model vintage scored the same rows).
+# Maps to CrosstabSpec.comparison -> ComparisonSpec + BaselineSpec(type: column).
+
+source:
+  type: parquet
+  path: /data/scores/current_and_prior.parquet
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+
+comparison:
+  baseline:
+    type: column
+    column: prior_model_score   # same source, row-aligned -> inherently paired
+  metrics:
+    - mean_diff
+    - median_diff
+    - paired_ttest
+    # - wilcoxon    # requires per-group raw arrays; see max_sample_size guardrail below
+
+options:
+  max_sample_size: 200_000   # cap per-group array size before any raw-array (e.g. wilcoxon) test
