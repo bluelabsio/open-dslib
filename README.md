@@ -10,10 +10,10 @@ strategy and design decisions.
 
 ## Status
 
-M0-M4 complete: core spec + Polars file engine + basic stats, the in-memory DataFrame
-adapter, counterfactual/baseline comparison, and the SQL source. See
-`docs/implementation-plan.md` for milestone sequencing. Not yet built: the CLI (M5),
-cube/auto-groupby (M6), and exporters/extensibility polish (M7).
+M0-M5 complete: core spec + Polars file engine + basic stats, the in-memory DataFrame
+adapter, counterfactual/baseline comparison, the SQL source, and the `xtab` CLI. See
+`docs/implementation-plan.md` for milestone sequencing. Not yet built: cube/auto-groupby
+(M6) and exporters/extensibility polish (M7).
 
 ## Install (dev)
 
@@ -23,13 +23,19 @@ pip install -e ".[dev]"
 
 ## Usage
 
+As a library:
+
 ```python
 from crosstab_tool import run_crosstab, CrosstabSpec
 
 result = run_crosstab(CrosstabSpec.model_validate({...}))
 ```
 
-The `xtab` CLI (referenced in `examples/notebooks/`) is the M5 target interface and
-isn't built yet -- for now, `CrosstabSpec` is constructed directly (or via
-`CrosstabSpec.model_validate(yaml.safe_load(...))`, since the YAML files in
-`examples/configs/` already round-trip against the real spec model).
+As a CLI, config-driven (see `examples/configs/` for the full shape of a config file):
+
+```bash
+xtab run --config examples/configs/explicit_groupbys.yaml
+xtab run --config path/to/config.yaml --out results/ --format parquet
+xtab validate --config path/to/config.yaml   # schema/column/dtype checks, no execution
+xtab schema                                   # CrosstabSpec's JSON Schema, e.g. for editor autocompletion
+```
