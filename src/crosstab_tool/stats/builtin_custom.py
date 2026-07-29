@@ -31,7 +31,7 @@ def _map_batches_stat(name: str, batch_fn: Any) -> StatFunction:
     def build_expr(column: str, params: dict[str, Any]) -> pl.Expr:
         return (
             pl.col(column)
-            .map_batches(lambda s: pl.Series([batch_fn(s)]), return_dtype=pl.Float64)
+            .map_batches(batch_fn, return_dtype=pl.Float64, returns_scalar=True)
             .alias(f"{column}_{name}")
         )
 
