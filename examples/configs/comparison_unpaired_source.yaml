@@ -23,6 +23,7 @@ stats:
     column: model_score
 
 comparison:
+  column: model_score   # the current score column being compared
   baseline:
     type: source
     source:
@@ -33,6 +34,4 @@ comparison:
   metrics:
     - ks_test
     - mannwhitney
-
-options:
   max_sample_size: 200_000   # both tests need raw per-group arrays via .implode()

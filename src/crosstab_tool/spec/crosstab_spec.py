@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from crosstab_tool.spec.comparison_spec import ComparisonSpec
 from crosstab_tool.spec.groupby_spec import GroupBySpec
 from crosstab_tool.spec.source_spec import DataSourceSpec
 from crosstab_tool.spec.stat_spec import StatSpec
@@ -20,6 +21,7 @@ class CrosstabSpec(BaseModel):
     stats: list[StatSpec]
     filters: list[str] = Field(default_factory=list)
     options: dict[str, Any] = Field(default_factory=dict)
+    comparison: Optional[ComparisonSpec] = None  # noqa: UP045 (see spec/comparison_spec.py)
 
     @field_validator("score_columns")
     @classmethod

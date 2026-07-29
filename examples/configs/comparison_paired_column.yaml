@@ -22,6 +22,7 @@ stats:
     column: model_score
 
 comparison:
+  column: model_score           # the current score column being compared
   baseline:
     type: column
     column: prior_model_score   # same source, row-aligned -> inherently paired
@@ -30,6 +31,4 @@ comparison:
     - median_diff
     - paired_ttest
     # - wilcoxon    # requires per-group raw arrays; see max_sample_size guardrail below
-
-options:
   max_sample_size: 200_000   # cap per-group array size before any raw-array (e.g. wilcoxon) test
