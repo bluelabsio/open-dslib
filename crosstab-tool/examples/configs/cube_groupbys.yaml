@@ -1,0 +1,38 @@
+# Auto-generated combinations (cube/rollup) instead of an explicit groupset list.
+# Maps to CrosstabSpec.groupby -> CubeSpec, expanded via expand_to_groupsets().
+#
+# NOT YET IMPLEMENTED (M6): CubeSpec doesn't exist yet -- only GroupBySpec's
+# "explicit" shape is built (M1). This file documents the intended M6 shape; as of M4,
+# spec models reject unrecognized fields (spec/_base.py), so `CrosstabSpec.model_validate`
+# now correctly fails on `groupby.type: cube` here rather than silently ignoring it.
+# `options.cardinality_guardrail` below is similarly aspirational -- `options` accepts
+# arbitrary keys (dict[str, Any]) so it won't fail validation, but nothing reads it yet.
+
+source:
+  type: csv
+  path: /data/scores/current.csv
+
+score_columns:
+  - model_score
+
+groupby:
+  type: cube
+  columns: [region, product, age_bucket, channel]
+  max_depth: 2          # cap combination size (2 of the 4 covariates at a time); omit for full 2^k power set
+  include_empty: true   # also compute the ungrouped ("overall") crosstab as one of the groupsets
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.5
+
+options:
+  streaming: true
+  # Fail fast rather than silently running an enormous number of tiny-group aggregations.
+  cardinality_guardrail:
+    max_groupset_count_x_cardinality: 5_000_000

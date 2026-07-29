@@ -1,0 +1,34 @@
+# Basic SQL warehouse source (M4). Read via ConnectorX (pl.read_database_uri) -- the
+# same swappable-source story as the file/dataframe sources, just a different adapter.
+#
+# v1 scale-limited path (see docs/POLARS_SCALE.md): there is no GROUP BY pushdown, so
+# `query`'s full result set is pulled to the client before Polars aggregates it. Narrow
+# `query` itself (as below) rather than relying on `filters` for anything expensive --
+# `filters` still runs, but only after the whole query result is already in memory.
+
+source:
+  type: sql
+  connection: "postgresql://readonly_user@warehouse.internal:5432/scores_db"
+  query: >
+    SELECT region, product, model_score
+    FROM scored_population
+    WHERE score_date = CURRENT_DATE
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.9

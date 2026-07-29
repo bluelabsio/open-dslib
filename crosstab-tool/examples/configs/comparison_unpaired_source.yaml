@@ -1,0 +1,37 @@
+# Counterfactual comparison, unpaired case: baseline is a SEPARATE dataset with
+# no join key to row-match against (e.g. last quarter's scoring run, different
+# population/units) -> compared at the group-distribution level instead.
+# Maps to CrosstabSpec.comparison -> ComparisonSpec + BaselineSpec(type: source, no join_keys).
+
+source:
+  type: parquet
+  path: /data/scores/2026-q3.parquet
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+
+comparison:
+  column: model_score   # the current score column being compared
+  baseline:
+    type: source
+    source:
+      type: parquet
+      path: /data/scores/2026-q2.parquet
+    # no join_keys -> each groupset is aggregated independently in both datasets
+    # and compared as two distributions, not row-matched
+  metrics:
+    - ks_test
+    - mannwhitney
+  max_sample_size: 200_000   # both tests need raw per-group arrays via .implode()

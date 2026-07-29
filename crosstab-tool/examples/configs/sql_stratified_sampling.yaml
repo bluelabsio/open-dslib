@@ -1,0 +1,53 @@
+# SQL warehouse source at 100M+ row scale. SQLSource (M4) pulls `query`'s full result
+# set client-side via ConnectorX -- there is no GROUP BY pushdown in v1 (see
+# docs/POLARS_SCALE.md). For v1, that means `query` itself must already narrow the
+# data down to something reasonable to pull, e.g. a date filter as below.
+#
+# docs/POLARS_SCALE.md sketches a floor-then-cap *stratified sampling* mitigation
+# (a `sampling` block compiled into a warehouse-side two-query pattern) as a documented
+# future direction for this scale gap. IT IS NOT YET IMPLEMENTED -- CrosstabSpec has no
+# `sampling` field, and adding one to this YAML would now correctly fail validation
+# (spec models reject unrecognized fields; see spec/_base.py). It would look like this
+# once built:
+#
+#   source:
+#     type: sql
+#     connection: ...
+#     query: ...
+#     sampling:
+#       strategy: stratified
+#       by: [region, product, age_bucket]
+#       min_per_group: 100_000
+#       target_total_rows: 50_000_000
+#       method: hash
+
+source:
+  type: sql
+  connection: "snowflake://analytics_role@myorg-prod/SCORES_DB/PUBLIC"
+  query: >
+    SELECT entity_id, region, product, age_bucket, model_score
+    FROM scored_population
+    WHERE score_date = '2026-07-28'
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+    - [region, product, age_bucket]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+  - name: percentile
+    column: model_score
+    params:
+      q: 0.9
+
+options:
+  streaming: true

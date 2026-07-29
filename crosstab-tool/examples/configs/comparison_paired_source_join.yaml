@@ -1,0 +1,36 @@
+# Counterfactual comparison, paired case via a join: baseline lives in a SEPARATE
+# dataset (e.g. last quarter's scoring run), but shares an entity key with the
+# current data -> paired via an inner join on join_keys, not row-position.
+# Maps to CrosstabSpec.comparison -> ComparisonSpec + BaselineSpec(type: source, join_keys set).
+
+source:
+  type: parquet
+  path: /data/scores/2026-q3.parquet
+
+score_columns:
+  - model_score
+
+groupby:
+  type: explicit
+  groups:
+    - [region]
+    - [region, product]
+
+stats:
+  - name: count
+    column: model_score
+  - name: mean
+    column: model_score
+
+comparison:
+  column: model_score
+  baseline:
+    type: source
+    source:
+      type: parquet
+      path: /data/scores/2026-q2.parquet
+    join_keys: [entity_id]   # present -> inner join on entity_id, then paired like a column baseline
+  metrics:
+    - mean_diff
+    - median_diff
+    - paired_ttest

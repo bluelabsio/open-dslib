@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crosstab-tool"
+version = "0.1.0"
+description = "Descriptive-statistics crosstabs for ML model scores, aggregated across covariate groupings, with optional counterfactual/baseline comparison."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "polars>=1.0",
+    "pyarrow>=14.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "scipy>=1.10",
+    "typer>=0.12",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+sql = ["connectorx>=0.3"]
+cloud = ["fsspec>=2024.1", "s3fs", "gcsfs", "adlfs"]
+pandas = ["pandas>=2.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "pytest-benchmark",
+    "hypothesis>=6.0",
+    "testcontainers",
+    "ruff",
+    "mypy",
+    "types-PyYAML",
+    "pre-commit",
+    "pandas>=2.0",  # exercises PandasSource in tests, even though it's an optional runtime extra
+    "connectorx>=0.3",  # exercises SQLSource in tests, even though it's an optional runtime extra
+]
+
+[project.scripts]
+xtab = "crosstab_tool.cli.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crosstab_tool"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

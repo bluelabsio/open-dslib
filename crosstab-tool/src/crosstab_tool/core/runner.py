@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+from crosstab_tool.core.result import CrosstabResult
+from crosstab_tool.core.validation import validate_spec
+from crosstab_tool.engine.polars_engine import run as engine_run
+from crosstab_tool.sources.registry import build_source
+from crosstab_tool.spec.crosstab_spec import CrosstabSpec
+
+
+class CrosstabRunner:
+    """Single orchestration path shared by the Python API and the CLI."""
+
+    def run(self, spec: CrosstabSpec) -> CrosstabResult:
+        # Built once and threaded through both validation and execution: for a file or
+        # in-memory source this is free either way, but for a SQL source (M4)
+        # `describe_schema()` and `to_polars_lazyframe()` both require actually running
+        # the query -- building the adapter twice would mean running it twice.
+        source = build_source(spec.source)
+        validate_spec(spec, source)
+        frames = engine_run(spec, source)
+        return CrosstabResult(frames=frames, spec=spec)
+
+
+def run_crosstab(spec: CrosstabSpec) -> CrosstabResult:
+    return CrosstabRunner().run(spec)
