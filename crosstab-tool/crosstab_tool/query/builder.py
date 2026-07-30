@@ -77,3 +77,20 @@ def build_query(config: JobConfig) -> str:
 
     union = "\nUNION ALL\n".join(blocks)
     return f"WITH base AS (\n{base_cte}\n)\n{union}\nORDER BY 1, 2"
+
+
+def expected_result_columns(config: JobConfig) -> list[str]:
+    """The column names `build_query(config)`'s SQL would actually produce:
+    category, level, count, plus one `f"{agg}_{name}"` per requested
+    aggregation on each score/counterfactual -- mirrors `_agg_selects`
+    exactly, without generating any SQL.
+
+    Used by `cli.py`'s `validate` command to check `cross_column.inputs`
+    resolve against real output columns before a job ever runs against
+    Redshift -- see `compute/cross_column.py`'s `resolve_column_name`.
+    """
+    columns = ["category", "level", "count"]
+    for col in [*config.scores, *config.counterfactuals]:
+        aggs = col.aggregations or config.aggregations.default
+        columns.extend(f"{agg.value}_{col.name}" for agg in aggs)
+    return columns

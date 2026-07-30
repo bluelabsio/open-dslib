@@ -5,14 +5,16 @@ from pathlib import Path
 
 import click
 from dotenv import load_dotenv
+from pydantic import ValidationError
 
-from crosstab_tool.compute.cross_column import apply_cross_column
+from crosstab_tool.compute.cross_column import apply_cross_column, resolve_column_name
 from crosstab_tool.config.loader import load_job_config
 from crosstab_tool.config.schema import OutputDestination
 from crosstab_tool.metadata.run_metadata import build_run_metadata, write_run_artifacts
 from crosstab_tool.output.files import FileWriter
 from crosstab_tool.output.sheets import GoogleSheetsWriter
-from crosstab_tool.query.builder import build_query
+from crosstab_tool.query.builder import build_query, expected_result_columns
+from crosstab_tool.query.identifiers import SQLGenerationError
 from crosstab_tool.sources.redshift import RedshiftSource
 
 
@@ -39,6 +41,55 @@ def sql(config_path: str, output_path: str | None):
     out_path = Path(output_path) if output_path else Path(f"{config.job.name}.sql")
     out_path.write_text(generated_sql + "\n")
     click.echo(f"SQL written to {out_path}")
+
+
+@cli.command()
+@click.argument("config_path", type=click.Path(exists=True))
+def validate(config_path: str):
+    """Validate a config against the schema, preview the generated SQL,
+    and confirm any `cross_column` entries resolve against the columns
+    that SQL would actually produce -- all without a live Redshift
+    connection.
+
+    This is the check to script against (e.g. from the
+    crosstab-config-wizard skill, or CI) instead of re-implementing
+    schema/resolution knowledge separately -- schema validation
+    (load_job_config), SQL shape (build_query), and cross_column
+    resolution (resolve_column_name) all live here as the single source
+    of truth, so a standalone validator can't silently drift out of sync
+    as the schema evolves.
+
+    Exits non-zero with a clear message on any failure: schema errors
+    from load_job_config, SQL-generation errors from a bad identifier
+    (query.identifiers.SQLGenerationError), or a cross_column input that
+    doesn't resolve to a real output column.
+    """
+    try:
+        config = load_job_config(config_path)
+    except ValidationError as e:
+        raise click.ClickException(str(e)) from e
+    try:
+        generated_sql = build_query(config)
+    except SQLGenerationError as e:
+        raise click.ClickException(str(e)) from e
+    expected_columns = expected_result_columns(config)
+
+    for cc in config.cross_column:
+        for name in cc.inputs:
+            try:
+                resolve_column_name(expected_columns, name)
+            except KeyError as e:
+                raise click.ClickException(str(e)) from e
+
+    click.echo(f"Config valid: {config.job.name} ({config.job.model_version})")
+    click.echo(
+        f"{len(config.grouping_variables)} grouping variable(s), "
+        f"{len(config.scores)} score(s), {len(config.counterfactuals)} counterfactual(s), "
+        f"{len(config.cross_column)} cross_column entry(ies) -- all resolved OK"
+    )
+    click.echo("")
+    click.echo("--- Generated SQL preview ---")
+    click.echo(generated_sql)
 
 
 @cli.command()
