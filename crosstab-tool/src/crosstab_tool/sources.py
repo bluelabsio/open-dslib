@@ -54,6 +54,49 @@ class RedshiftSource(DataSource):
         with self.engine.connect() as con:
             return pd.read_sql(text(sql), con)
 
+    def columns_by_table(self, tables: list[str]) -> dict[str, set[str]]:
+        """Lowercased column names present on each of the given (optionally
+        schema-qualified) tables, via information_schema, keyed by the table
+        string as passed in. Lets the runner drop a configured grouping/metric
+        column that no longer exists, and detect one that exists on more than
+        one joined table (and would be ambiguous when referenced unqualified),
+        instead of failing the whole crosstab query."""
+        conditions = []
+        params: dict[str, str] = {}
+        for i, t in enumerate(tables):
+            parts = t.split(".")
+            params[f"table{i}"] = parts[-1]
+            if len(parts) > 1:
+                params[f"schema{i}"] = parts[-2]
+                conditions.append(f"(table_name = :table{i} AND table_schema = :schema{i})")
+            else:
+                conditions.append(f"table_name = :table{i}")
+        sql = (
+            "SELECT table_schema, table_name, column_name FROM information_schema.columns "
+            "WHERE " + " OR ".join(conditions)
+        )
+        with self.engine.connect() as con:
+            rows = con.execute(text(sql), params).fetchall()
+
+        by_qualified_name: dict[str, set[str]] = {}
+        for schema, table_name, column_name in rows:
+            by_qualified_name.setdefault(f"{schema}.{table_name}", set()).add(
+                column_name.lower()
+            )
+
+        result: dict[str, set[str]] = {}
+        for t in tables:
+            if "." in t:
+                result[t] = by_qualified_name.get(t, set())
+            else:
+                # Unqualified table name: merge columns from any schema match.
+                merged: set[str] = set()
+                for qualified, cols in by_qualified_name.items():
+                    if qualified.split(".")[-1] == t:
+                        merged |= cols
+                result[t] = merged
+        return result
+
     def fetch_rows(self, sql: str, chunksize: int = 100_000):
         """Escape hatch for custom logic that truly needs row-level data.
         Yields DataFrame chunks; see README 'Custom functions and scale'

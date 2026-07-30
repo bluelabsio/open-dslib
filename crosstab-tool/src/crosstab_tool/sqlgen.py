@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 
-from crosstab_tool.config import ConfigError, Grouping, Job, Metric, _slug
+from crosstab_tool.config import ConfigError, Job, _slug
 from crosstab_tool.registry import AGGREGATIONS
 
 # Identifiers are interpolated into SQL, so restrict them to safe shapes
@@ -34,11 +34,26 @@ def _quote_literal(value: str) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def base_cte(job: Job) -> str:
+def base_cte(job: Job, join_select_columns: dict[str, list[str]] | None = None) -> str:
+    """`join_select_columns` (alias -> explicit column list) lets the runner
+    pin a join table's contribution to specific columns, so that a column
+    name shared with the base table can be excluded from the join's `alias.*`
+    wildcard — the base table's version wins instead of both being selected
+    under the same name (which Redshift would then treat as ambiguous)."""
+    join_select_columns = join_select_columns or {}
     base = _check_identifier(job.source.base_table, "source.base_table")
-    select_cols = ["s.*"] + [
-        f"{join.alias or f't{i + 1}'}.*" for i, join in enumerate(job.source.joins)
-    ]
+    select_cols = ["s.*"]
+    for i, join in enumerate(job.source.joins):
+        alias = join.alias or f"t{i + 1}"
+        cols = join_select_columns.get(alias)
+        if cols is None:
+            select_cols.append(f"{alias}.*")
+        else:
+            select_cols.append(
+                ", ".join(
+                    f"{alias}.{_check_identifier(c, 'join column')}" for c in cols
+                )
+            )
     sql = f"    SELECT {', '.join(select_cols)}\n    FROM {base} s"
     for i, join in enumerate(job.source.joins):
         alias = _check_identifier(join.alias or f"t{i + 1}", "join alias")
@@ -79,8 +94,8 @@ def _tab_select(job: Job, category: str, level_expr: str) -> str:
     )
 
 
-def build_query(job: Job) -> str:
-    """The full crosstab query for a job."""
+def build_query(job: Job, join_select_columns: dict[str, list[str]] | None = None) -> str:
+    """The full crosstab query for a job. See `base_cte` for `join_select_columns`."""
     tabs = [
         _tab_select(job, f"00 {job.topline_label}", _quote_literal(job.topline_label))
     ]
@@ -88,4 +103,5 @@ def build_query(job: Job) -> str:
         col = _check_identifier(g.column, "grouping column")
         tabs.append(_tab_select(job, g.category(), f"CAST({col} AS VARCHAR)"))
     body = "\n\nUNION ALL\n\n".join(tabs)
-    return f"WITH base AS (\n{base_cte(job)}\n)\n\n{body}\n\nORDER BY category, level;"
+    cte = base_cte(job, join_select_columns)
+    return f"WITH base AS (\n{cte}\n)\n\n{body}\n\nORDER BY category, level;"

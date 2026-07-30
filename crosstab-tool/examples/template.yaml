@@ -1,0 +1,53 @@
+# Template job config — copy this file, fill in the placeholders below, and
+# run with:
+#   crosstab validate examples/<your_copy>.yaml   # check the config
+#   crosstab sql examples/<your_copy>.yaml         # inspect generated SQL (no DB needed)
+#   crosstab run examples/<your_copy>.yaml         # run end to end
+#
+# See the top-level README for the full field reference and a filled-in example.
+
+name: REPLACE_ME                        # short id for this job, e.g. my_model_tabs. affects csv name if used
+score_version: REPLACE_ME               # free-text label recorded in run_metadata, not used in SQL
+notes: ""                               # optional free-text description
+
+source:
+  base_table: schema.REPLACE_ME         # table with the score(s), schema-qualified
+  connection: REDSHIFT                  # env-var prefix: REDSHIFT_USER, REDSHIFT_PW, REDSHIFT_HOST, REDSHIFT_PORT, REDSHIFT_DB
+  joins:
+    - table: schema.REPLACE_ME          # table with the grouping/demographic columns
+      key: KEY                          # join key column, present on both tables
+      how: left                         # left | inner | right | full
+      # alias: t1                       # optional; defaults to t1, t2, ... in join order
+    # - table: schema.ANOTHER_TABLE     # add more joins as needed. necessary for counterfactuals
+    #   key: voterbase_id
+    #   how: left
+
+scores:
+  - column: REPLACE_ME                  # numeric score column, e.g. p_support
+  # - column: REPLACE_ME_2              # add more score columns as needed
+
+# counterfactuals:                      # same shape as scores; categorical example:
+#   - column: REPLACE_ME
+#     type: numeric                     # or categorical
+#     values: ["Support", "Oppose", "Undecided"] # only necessary if categorical variable
+
+groupings:                              # order controls the numbered category labels ("01 Age", ...)
+  - {column: REPLACE_ME, label: REPLACE_ME} # reads from base table by default
+  # - {column: REPLACE_ME, label: REPLACE_ME}
+  # - {column: REPLACE_ME, label: REPLACE_ME}
+
+aggregations: [count, mean]             # per-metric override: aggregations: [mean, median]
+
+# cross_column:                         # optional, computed post-aggregation in Python
+#   - {op: difference, left: avg_REPLACE_ME, right: avg_REPLACE_ME_2, label: REPLACE_ME_gap}
+
+output:
+  destination: sheets
+  spreadsheet: SHEET_NAME
+  worksheet: WORKSHEET
+  layout: long
+  share_with: [YOUR_EMAIL]              # must be a list, even for one address
+
+  # Uncomment below for CSV writing
+  # destination: csv
+  # path: REPLACE_ME.csv
