@@ -1,0 +1,59 @@
+# Starter config for a real SQL-backed crosstab run, with scores and covariates living
+# in two separate tables joined via `type: join` rather than a hand-written SQL JOIN.
+# Replace the ALL-CAPS placeholders below with your actual queries/tables/columns, then:
+#
+#   xtab validate --config examples/configs/my_crosstab.yaml   # schema/column checks, no execution
+#   xtab run      --config examples/configs/my_crosstab.yaml   # prints results to the terminal
+#   xtab run      --config examples/configs/my_crosstab.yaml --out results/ --format csv
+#
+# `connection` is intentionally omitted on both sub-sources: xtab will prompt you
+# interactively for host/database (if not filled in below) plus username/password
+# (password hidden) each time you run it, so no credentials need to live in this file.
+# (Each `sql` sub-source is prompted independently -- twice, if scores/covariates live
+# on different warehouses/credentials; once each with the same answers if they're the
+# same warehouse.)
+
+source:
+  type: join
+  how: left   # keep every scored row even if it has no covariate match (nulls those columns);
+              # use "inner" to drop unmatched rows instead, or "full" to also keep
+              # covariate-only rows with no score
+  join_keys: [voterbase_id]   # same column name on both sides -- use left_on/right_on instead
+                            # if the key is named differently per table, e.g.:
+                            #   left_on: [entity_id]
+                            #   right_on: [account_id]
+  left:
+    type: sql
+    #host: 
+    #port:
+    dialect: redshift   # NOT just "postgresql" -- ConnectorX only skips its COPY-based
+                        # fast path (which Redshift's parser rejects) when the URI
+                        # scheme itself says "redshift"
+    query: >
+      SELECT voterbase_id, p_support
+      FROM modeling.tfp_plain_language_support_score_20260416
+  right:
+    type: sql
+    #host:
+    database: analytics
+    dialect: redshift
+    #port:
+    query: >
+      SELECT voterbase_id, is_married
+      FROM modeling.tfp_modeling_basetable_20260622
+
+score_columns:
+  - p_support          # replace with your score column name
+
+groupby:
+  type: explicit
+  groups:
+    - [is_married]                    # replace with your covariate columns
+
+stats:
+  - name: count
+    column: p_support
+  - name: mean
+    column: p_support
+  - name: std
+    column: p_support
