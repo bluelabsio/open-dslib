@@ -13,6 +13,7 @@ dependencies = [
     "pandas",
     "gspread",
     "google-auth",
+    "openpyxl",  # needed by output/files.py's Excel writer
     "click",
     "python-dotenv",
 ]
