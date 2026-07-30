@@ -150,11 +150,25 @@ def test_run_invalid_config_content_fails_cleanly(tmp_path):
     assert "Error" in result.output
 
 
-def test_run_prints_results_to_terminal(config_path):
-    result = runner.invoke(app, ["run", "--config", str(config_path)])
+def test_run_prints_results_to_terminal_with_stdout_flag(config_path):
+    result = runner.invoke(app, ["run", "--config", str(config_path), "--stdout"])
     assert result.exit_code == 0
     assert "region" in result.output
     assert "model_score_count" in result.output
+
+
+def test_run_defaults_to_a_directory_named_after_the_config_file(config_path):
+    # config_path is <tmp_path>/config.yaml -> default output dir <tmp_path>/config/
+    result = runner.invoke(app, ["run", "--config", str(config_path)])
+    assert result.exit_code == 0
+
+    default_out_dir = config_path.with_suffix("")
+    written = default_out_dir / "region.parquet"
+    assert written.exists()
+
+    frame = pl.read_parquet(written).sort("region")
+    assert frame["region"].to_list() == ["A", "B"]
+    assert frame["model_score_count"].to_list() == [2, 1]
 
 
 def test_run_writes_parquet_files_with_out(tmp_path, config_path):

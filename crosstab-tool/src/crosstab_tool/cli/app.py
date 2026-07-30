@@ -88,38 +88,45 @@ def run(
         None,
         "--out",
         "-o",
-        help="Directory to write one output file per groupset into (prints to the "
-        "terminal instead if omitted).",
+        help="Directory to write one output file per groupset into. Defaults to a "
+        "directory named after the config file, alongside it (e.g. `my_crosstab.yaml` "
+        "-> `my_crosstab/`).",
     ),
     format: str = typer.Option(  # noqa: B008 (typer's standard default pattern)
         "parquet",
         "--format",
         "-f",
-        help="Output file format when --out is given: parquet or csv.",
+        help="Output file format: parquet or csv.",
+    ),
+    stdout: bool = typer.Option(  # noqa: B008 (typer's standard default pattern)
+        False,
+        "--stdout",
+        help="Print results to the terminal instead of writing files.",
     ),
 ) -> None:
-    """Run a crosstab spec and print the results, or write them to --out."""
-    if out is not None and format not in _SUPPORTED_FORMATS:
+    """Run a crosstab spec, writing one file per groupset (or printing with --stdout)."""
+    if not stdout and format not in _SUPPORTED_FORMATS:
         _fail(f"unsupported --format {format!r} (expected one of {_SUPPORTED_FORMATS})")
 
     logger.info("Loading config: %s", config)
     spec = _or_fail(load_spec, config)
     result: CrosstabResult = _or_fail(run_crosstab, spec)
 
-    if out is None:
+    if stdout:
         for key, frame in result.frames.items():
             console.print(f"[bold]{key}[/bold]")
             console.print(frame)
         return
 
-    out.mkdir(parents=True, exist_ok=True)
+    out_dir = out if out is not None else config.with_suffix("")
+    out_dir.mkdir(parents=True, exist_ok=True)
     for key, frame in result.frames.items():
-        path = out / f"{key}.{format}"
+        path = out_dir / f"{key}.{format}"
         if format == "parquet":
             frame.write_parquet(path)
         else:
             frame.write_csv(path)
-    console.print(f"Wrote {len(result.frames)} groupset(s) to {out} ({format})")
+    console.print(f"Wrote {len(result.frames)} groupset(s) to {out_dir} ({format})")
 
 
 def _validate(config: Path) -> None:

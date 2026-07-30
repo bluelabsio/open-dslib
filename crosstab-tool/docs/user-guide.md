@@ -54,7 +54,7 @@ stats:
 
 ```bash
 xtab validate --config my_config.yaml   # schema/column/dtype checks, no execution
-xtab run      --config my_config.yaml   # prints one table per groupset to the terminal
+xtab run      --config my_config.yaml   # writes one file per groupset to my_config/
 ```
 
 More worked examples live in `examples/configs/` — each has a comment explaining what
@@ -333,11 +333,18 @@ double-fetch concern the main source avoids; harmless for file/in-memory baselin
 
 ```bash
 xtab validate --config path/to/config.yaml              # schema/column checks only
-xtab run      --config path/to/config.yaml              # print results to terminal
-xtab run      --config path/to/config.yaml --out results/ --format csv   # or parquet (default)
+xtab run      --config path/to/config.yaml              # writes one file per groupset to path/to/config/
+xtab run      --config path/to/config.yaml --out results/ --format csv   # write elsewhere, or as csv (parquet is the default)
+xtab run      --config path/to/config.yaml --stdout      # print results to the terminal instead of writing files
 xtab schema                                              # print CrosstabSpec's JSON Schema
 xtab --verbose run --config path/to/config.yaml          # -v/--verbose goes BEFORE the subcommand
 ```
+
+By default (no `--out`, no `--stdout`), `xtab run` writes one output file per groupset
+(e.g. `region.parquet`, `region__product.parquet`, `__overall__.parquet`) into a
+directory named after the config file, alongside it — `path/to/config.yaml` writes to
+`path/to/config/`. Pass `--out <dir>` to write somewhere else instead, or `--stdout` to
+print to the terminal instead of writing anything to disk.
 
 `--verbose`/`-v` bumps logging from INFO to DEBUG — see [Logging](#logging) below.
 
