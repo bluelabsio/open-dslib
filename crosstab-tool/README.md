@@ -6,7 +6,8 @@ and optionally compare against a counterfactual/baseline (e.g. a prior model vin
 difference metrics and statistical tests.
 
 Built natively on [Polars](https://pola.rs). See `docs/architecture.md` for the engine
-strategy and design decisions.
+strategy and design decisions, and `docs/user-guide.md` for the full config reference
+(all source types, groupby modes, stats, comparison, logging, and CLI usage).
 
 ## Status
 
