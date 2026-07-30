@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field
 
@@ -34,11 +34,25 @@ class SQLSourceSpec(StrictModel):
     docs/POLARS_SCALE.md for the tradeoffs and the stratified-sampling mitigation this
     documents but doesn't (yet) implement. Practical for v1 only when `query` already
     filters/pre-aggregates down to a manageable size.
+
+    `connection` is optional precisely so credentials don't have to live in a config
+    file: when it's omitted, `sources/sql.py` prompts interactively for username/
+    password (and for `host`/`port`/`database` too, if those aren't given here either)
+    rather than failing validation. `host`/`port`/`database` are safe to check into a
+    config file since they aren't secrets; username/password never are, so there's no
+    corresponding config field for them.
     """
 
     type: Literal["sql"] = "sql"
-    connection: str  # a ConnectorX-compatible URI, e.g. postgresql://user:pw@host/db
+    # a ConnectorX-compatible URI, e.g. postgresql://user:pw@host/db (see class docstring
+    # for why this -- and only this -- is optional; noqa: UP045 to match this module's
+    # Optional[X] convention for pydantic fields, see comparison_spec.py's NB)
+    connection: Optional[str] = None  # noqa: UP045
     query: str  # a full SQL query, e.g. "SELECT region, score FROM scored_population"
+    dialect: str = "postgresql"  # used to build the URI when `connection` is omitted
+    host: Optional[str] = None  # noqa: UP045
+    port: Optional[int] = None  # noqa: UP045
+    database: Optional[str] = None  # noqa: UP045
 
 
 # NB: kept as typing.Union (not `X | Y`) since this is a runtime expression, not an
