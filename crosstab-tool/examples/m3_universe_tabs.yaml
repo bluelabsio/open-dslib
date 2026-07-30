@@ -1,0 +1,53 @@
+# Reproduces the hand-written "m3 Universe tabs" reference SQL (Appendix A of
+# the requirements doc). Run with:
+#   crosstab sql examples/m3_universe_tabs.yaml    # inspect generated SQL
+#   crosstab run examples/m3_universe_tabs.yaml    # execute against Redshift
+
+name: tester_1
+score_version: plain_language_support_score_20260416
+notes: Model 3 universe tabs, CO modeling basetable joined on voterbase_id.
+
+source:
+  base_table: modeling.plain_language_support_score_20260416
+  connection: REDSHIFT          # env-var prefix: REDSHIFT_USER, REDSHIFT_PW, ...
+  joins:
+    - table: modeling.tfp_modeling_basetable_20260622
+      key: voterbase_id
+      how: left
+
+scores:
+  - column: p_support
+  - column: p_support_standardized
+
+# counterfactuals:              # same shape as scores; categorical example:
+#   - column: support_flag_2024
+#     type: categorical
+#     values: ["Support", "Oppose", "Undecided"]
+
+groupings:
+  - {column: age_bucket_full, label: Age}
+  - {column: is_female, label: Female}
+  - {column: ethnicity, label: Ethnicity}
+  - {column: education_modeled, label: Education Modeled}
+  - {column: education_area, label: Education Area}
+  - {column: income_bucket, label: Income}
+  - {column: urbanicity, label: Urbanicity}
+  - {column: co_region, label: CO Region}
+  - {column: party, label: Party}
+  - {column: is_married, label: Is Married}
+  - {column: is_homeowner, label: Is Homeowner}
+  - {column: vote_method_2020, label: 2020 Vote Method}
+  - {column: vote_method_2024, label: 2024 Vote Method}
+
+aggregations: [count, mean]     # avg_<score> per score, plus a shared count
+
+# cross_column:                 # post-aggregation, computed in Python:
+#   - {op: difference, left: avg_p_support, right: avg_p_support_standardized}
+
+output:
+  destination: sheets
+  spreadsheet: m3 Universe tabs
+  worksheet: crosstabs
+  layout: long
+  share_with: [toby.winick@bluelabs.com]
+  # credentials_file: /path/to/service-account.json   # or GOOGLE_APPLICATION_CREDENTIALS

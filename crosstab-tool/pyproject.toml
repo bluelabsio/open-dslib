@@ -1,0 +1,29 @@
+[project]
+name = "crosstab-tool"
+version = "0.1.0"
+description = "Configurable crosstab / counterfactual reporting tool: SQL push-down to Redshift, output to Google Sheets, Excel, or CSV."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "PyYAML>=6.0",
+    "sqlalchemy>=2.0",
+    "sqlalchemy-redshift>=0.8",
+    "redshift-connector>=2.0",
+    "gspread>=6.0",
+    "google-auth>=2.0",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+crosstab = "crosstab_tool.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crosstab_tool"]
