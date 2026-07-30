@@ -10,10 +10,10 @@ strategy and design decisions.
 
 ## Status
 
-M0-M5 complete: core spec + Polars file engine + basic stats, the in-memory DataFrame
-adapter, counterfactual/baseline comparison, the SQL source, and the `xtab` CLI. See
-`docs/implementation-plan.md` for milestone sequencing. Not yet built: cube/auto-groupby
-(M6) and exporters/extensibility polish (M7).
+M0-M6 complete: core spec + Polars file engine + basic stats, the in-memory DataFrame
+adapter, counterfactual/baseline comparison, the SQL source, the `xtab` CLI, and
+cube/auto-groupby. See `docs/implementation-plan.md` for milestone sequencing. Not yet
+built: exporters/extensibility polish (M7).
 
 ## Install (dev)
 

@@ -4,6 +4,7 @@ from crosstab_tool.sources.base import DataSourceAdapter
 from crosstab_tool.sources.registry import build_source
 from crosstab_tool.spec.comparison_spec import ColumnBaselineSpec, ComparisonSpec
 from crosstab_tool.spec.crosstab_spec import CrosstabSpec
+from crosstab_tool.spec.groupby_spec import CubeSpec
 from crosstab_tool.stats.comparison_registry import validate_metrics_for_baseline
 from crosstab_tool.stats.registry import get_stat, is_numeric_dtype
 
@@ -16,12 +17,11 @@ def validate_spec(spec: CrosstabSpec, source: DataSourceAdapter) -> None:
     would be free, but for a SQL source (M4) it would mean running the query twice.
 
     Column existence and dtype compatibility are checked against the source's schema.
-    Combinatorial groupset-explosion guardrails are out of scope here; they only apply
-    to cube/auto-generated groupbys (M6).
     """
     schema = source.describe_schema()
+    groupsets = spec.groupby.expand_to_groupsets()
 
-    for groupset in spec.groupby.groups:
+    for groupset in groupsets:
         for column in groupset:
             if column not in schema:
                 raise ValueError(f"groupby column {column!r} not found in source schema")
@@ -38,8 +38,47 @@ def validate_spec(spec: CrosstabSpec, source: DataSourceAdapter) -> None:
                 f"{stat_spec.column!r} has dtype {schema[stat_spec.column]!r}"
             )
 
+    if isinstance(spec.groupby, CubeSpec):
+        _validate_cube_cardinality(groupsets, spec.options, source)
+
     if spec.comparison is not None:
         _validate_comparison(spec.comparison, schema)
+
+
+def _validate_cube_cardinality(
+    groupsets: list[list[str]], options: dict, source: DataSourceAdapter
+) -> None:
+    """Guards against a cube's combinatorial groupset count blowing up on large data --
+    e.g. a 4-column cube over 100M rows is up to 15 separate full-scan `group_by().agg()`
+    passes (see docs/implementation-plan.md's Engine Strategy section on why Polars needs
+    one pass per groupset, unlike SQL `GROUPING SETS`; that's slated to move into
+    docs/architecture.md as part of M7).
+
+    Opt-in via ``options.cardinality_guardrail.max_groupset_count_x_cardinality`` (see
+    examples/configs/cube_groupbys.yaml) -- omitted by default so existing/simple cube
+    configs aren't forced to tune a threshold they don't need. Also a no-op when the
+    source can't estimate its row count (``estimated_row_count()`` returns ``None``),
+    since there's nothing to guard against without a number.
+    """
+    guardrail = options.get("cardinality_guardrail")
+    if not guardrail:
+        return
+    threshold = guardrail.get("max_groupset_count_x_cardinality")
+    if threshold is None:
+        return
+
+    row_count = source.estimated_row_count()
+    if row_count is None:
+        return
+
+    estimate = len(groupsets) * row_count
+    if estimate > threshold:
+        raise ValueError(
+            f"cube groupby would run {len(groupsets)} groupset passes over an estimated "
+            f"{row_count} rows ({estimate} > options.cardinality_guardrail."
+            f"max_groupset_count_x_cardinality={threshold}); narrow groupby.columns/"
+            f"max_depth, or raise the threshold if this is intentional"
+        )
 
 
 def _validate_comparison(comparison: ComparisonSpec, schema: dict[str, str]) -> None:

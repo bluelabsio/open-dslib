@@ -4,7 +4,7 @@ from pydantic import Field, field_validator
 
 from crosstab_tool.spec._base import StrictModel
 from crosstab_tool.spec.comparison_spec import ComparisonSpec
-from crosstab_tool.spec.groupby_spec import GroupBySpec
+from crosstab_tool.spec.groupby_spec import GroupBySpecUnion
 from crosstab_tool.spec.source_spec import DataSourceSpec
 from crosstab_tool.spec.stat_spec import StatSpec
 
@@ -18,7 +18,7 @@ class CrosstabSpec(StrictModel):
 
     source: DataSourceSpec
     score_columns: list[str]
-    groupby: GroupBySpec
+    groupby: GroupBySpecUnion
     stats: list[StatSpec]
     filters: list[str] = Field(default_factory=list)
     options: dict[str, Any] = Field(default_factory=dict)
