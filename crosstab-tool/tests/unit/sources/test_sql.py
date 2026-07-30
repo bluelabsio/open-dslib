@@ -9,11 +9,15 @@ from crosstab_tool.spec.source_spec import SQLSourceSpec
 def test_missing_connection_prompts_for_credentials_and_builds_uri(monkeypatch):
     prompts = []
 
+    answers = {
+        "Database host": "warehouse.internal",
+        "Database name": "scores_db",
+        "Username": "alice",
+    }
+
     def fake_input(prompt):
         prompts.append(prompt)
-        return {"Database host": "warehouse.internal", "Database name": "scores_db", "Username": "alice"}[
-            prompt.rstrip(": ")
-        ]
+        return answers[prompt.rstrip(": ")]
 
     monkeypatch.setattr("builtins.input", fake_input)
     monkeypatch.setattr(getpass, "getpass", lambda prompt="": "s3cr3t!")

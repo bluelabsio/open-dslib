@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 import polars as pl
 
 from crosstab_tool.spec.source_spec import CSVSourceSpec, ParquetSourceSpec
+
+logger = logging.getLogger(__name__)
 
 
 class ParquetSource:
@@ -10,6 +14,7 @@ class ParquetSource:
         self.spec = spec
 
     def to_polars_lazyframe(self) -> pl.LazyFrame:
+        logger.debug("Scanning parquet source: %s", self.spec.path)
         return pl.scan_parquet(self.spec.path)
 
     def describe_schema(self) -> dict[str, str]:
@@ -25,6 +30,7 @@ class CSVSource:
         self.spec = spec
 
     def to_polars_lazyframe(self) -> pl.LazyFrame:
+        logger.debug("Scanning CSV source: %s", self.spec.path)
         return pl.scan_csv(self.spec.path)
 
     def describe_schema(self) -> dict[str, str]:

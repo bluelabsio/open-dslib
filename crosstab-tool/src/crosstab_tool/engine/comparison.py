@@ -7,6 +7,7 @@ small (group-count-sized, not row-count-sized) table is ever handed to scipy/Pyt
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import polars as pl
@@ -21,6 +22,8 @@ from crosstab_tool.spec.comparison_spec import (
 from crosstab_tool.spec.crosstab_spec import CrosstabSpec
 from crosstab_tool.stats.comparison_registry import PAIRED_AGGREGATE_METRICS, PAIRED_TTEST_METRIC
 from crosstab_tool.stats.registry import get_stat
+
+logger = logging.getLogger(__name__)
 
 _DIFF_COLUMN = "__diff"
 _TTEST_MEAN = "__ttest_mean"
@@ -138,6 +141,11 @@ def run_paired(
     comparison = spec.comparison
     assert comparison is not None
 
+    baseline_kind = (
+        "column" if isinstance(comparison.baseline, ColumnBaselineSpec) else "source+join_keys"
+    )
+    logger.info("Paired comparison: baseline=%s, column=%s", baseline_kind, comparison.column)
+
     diff_lf = _build_diff_lazyframe(comparison, current_lf)
     combined_exprs = [*base_exprs, *_paired_comparison_exprs(comparison)]
 
@@ -207,6 +215,11 @@ def run_unpaired(
     assert isinstance(baseline, SourceBaselineSpec) and baseline.join_keys is None
     column = comparison.column
 
+    logger.info(
+        "Unpaired comparison: column=%s, metrics=%s (separate baseline source, no join)",
+        column,
+        comparison.metrics,
+    )
     baseline_lf = build_source(baseline.source).to_polars_lazyframe()
     for filter_expr in spec.filters:
         baseline_lf = baseline_lf.filter(pl.sql_expr(filter_expr))

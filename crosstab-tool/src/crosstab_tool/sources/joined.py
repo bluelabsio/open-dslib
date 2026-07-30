@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 import polars as pl
 
 from crosstab_tool.sources.base import DataSourceAdapter
 from crosstab_tool.spec.source_spec import JoinSourceSpec
+
+logger = logging.getLogger(__name__)
 
 
 class JoinedSource:
@@ -23,10 +27,21 @@ class JoinedSource:
         self._right = right
 
     def to_polars_lazyframe(self) -> pl.LazyFrame:
+        # NB: this only builds the lazy join plan -- like the rest of the engine, the
+        # actual join doesn't execute until something downstream collects it.
         left_lf = self._left.to_polars_lazyframe()
         right_lf = self._right.to_polars_lazyframe()
         if self.spec.join_keys is not None:
+            logger.info(
+                "Planning join of two sources on %s (how=%s)", self.spec.join_keys, self.spec.how
+            )
             return left_lf.join(right_lf, on=self.spec.join_keys, how=self.spec.how)
+        logger.info(
+            "Planning join of two sources on left_on=%s/right_on=%s (how=%s)",
+            self.spec.left_on,
+            self.spec.right_on,
+            self.spec.how,
+        )
         return left_lf.join(
             right_lf, left_on=self.spec.left_on, right_on=self.spec.right_on, how=self.spec.how
         )

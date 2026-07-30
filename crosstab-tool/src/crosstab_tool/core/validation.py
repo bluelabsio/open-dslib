@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from crosstab_tool.sources.base import DataSourceAdapter
 from crosstab_tool.sources.registry import build_source
 from crosstab_tool.spec.comparison_spec import ColumnBaselineSpec, ComparisonSpec
@@ -7,6 +9,8 @@ from crosstab_tool.spec.crosstab_spec import CrosstabSpec
 from crosstab_tool.spec.groupby_spec import CubeSpec
 from crosstab_tool.stats.comparison_registry import validate_metrics_for_baseline
 from crosstab_tool.stats.registry import get_stat, is_numeric_dtype
+
+logger = logging.getLogger(__name__)
 
 
 def validate_spec(spec: CrosstabSpec, source: DataSourceAdapter) -> None:
@@ -18,8 +22,16 @@ def validate_spec(spec: CrosstabSpec, source: DataSourceAdapter) -> None:
 
     Column existence and dtype compatibility are checked against the source's schema.
     """
+    logger.debug("Fetching source schema for validation")
     schema = source.describe_schema()
+    logger.debug("Source schema has %d column(s): %s", len(schema), ", ".join(schema))
+
     groupsets = spec.groupby.expand_to_groupsets()
+    logger.info(
+        "Checking %d groupset(s) and %d stat(s) against the source schema",
+        len(groupsets),
+        len(spec.stats),
+    )
 
     for groupset in groupsets:
         for column in groupset:
@@ -42,7 +54,10 @@ def validate_spec(spec: CrosstabSpec, source: DataSourceAdapter) -> None:
         _validate_cube_cardinality(groupsets, spec.options, source)
 
     if spec.comparison is not None:
+        logger.info("Validating comparison/baseline configuration")
         _validate_comparison(spec.comparison, schema)
+
+    logger.info("Spec validation passed")
 
 
 def _validate_cube_cardinality(
@@ -69,9 +84,20 @@ def _validate_cube_cardinality(
 
     row_count = source.estimated_row_count()
     if row_count is None:
+        logger.debug(
+            "Cube cardinality guardrail configured, but source can't estimate row count "
+            "-- skipping"
+        )
         return
 
     estimate = len(groupsets) * row_count
+    logger.info(
+        "Cube cardinality guardrail: %d groupset(s) x ~%d row(s) = %d (threshold %d)",
+        len(groupsets),
+        row_count,
+        estimate,
+        threshold,
+    )
     if estimate > threshold:
         raise ValueError(
             f"cube groupby would run {len(groupsets)} groupset passes over an estimated "

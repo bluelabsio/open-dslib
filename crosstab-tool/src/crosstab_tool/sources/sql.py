@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import getpass
+import logging
+import time
 from urllib.parse import quote_plus
 
 import polars as pl
 
 from crosstab_tool.spec.source_spec import SQLSourceSpec
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_PORTS = {"postgresql": 5432, "redshift": 5439}
 
@@ -16,17 +20,23 @@ def _resolve_connection(spec: SQLSourceSpec) -> str:
 
     Username/password are always prompted here -- there's no config field for them, so
     they never end up checked into a config file. `host`/`port`/`database` are prompted
-    too if the spec didn't already supply them.
+    too if the spec didn't already supply them. Never logs the password, and only logs
+    the username/host/database at INFO once the connection string is actually built.
     """
     if spec.connection is not None:
+        logger.debug("Using preconfigured SQL connection string")
         return spec.connection
 
+    logger.info(
+        "No connection configured for dialect=%s -- prompting for credentials", spec.dialect
+    )
     host = spec.host or input("Database host: ").strip()
     database = spec.database or input("Database name: ").strip()
     port = spec.port or _DEFAULT_PORTS.get(spec.dialect, 5432)
     user = input("Username: ").strip()
     password = getpass.getpass("Password: ")
 
+    logger.info("Connecting to %s://%s@%s:%s/%s", spec.dialect, user, host, port, database)
     return f"{spec.dialect}://{quote_plus(user)}:{quote_plus(password)}@{host}:{port}/{database}"
 
 
@@ -60,7 +70,13 @@ class SQLSource:
         if self._frame is None:
             if self._connection is None:
                 self._connection = _resolve_connection(self.spec)
+            logger.info("Executing SQL query (dialect=%s)", self.spec.dialect)
+            logger.debug("Query: %s", self.spec.query)
+            start = time.perf_counter()
             self._frame = pl.read_database_uri(self.spec.query, self._connection)
+            logger.info(
+                "Fetched %d row(s) in %.2fs", self._frame.height, time.perf_counter() - start
+            )
         return self._frame
 
     def to_polars_lazyframe(self) -> pl.LazyFrame:

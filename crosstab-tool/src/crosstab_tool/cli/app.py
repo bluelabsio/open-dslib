@@ -7,6 +7,7 @@ from __future__ import annotations
 # NB: Optional[X] (not `X | Y`) below -- Typer resolves these annotations at runtime via
 # typing.get_type_hints(), which needs Python 3.10 for `X | Y` to work on concrete
 # classes. Same caveat as spec/comparison_spec.py, different library hitting it.
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import NoReturn, Optional, TypeVar
@@ -20,6 +21,7 @@ from crosstab_tool.cli.config_loader import load_spec
 from crosstab_tool.core.result import CrosstabResult
 from crosstab_tool.core.runner import run_crosstab
 from crosstab_tool.core.validation import validate_spec
+from crosstab_tool.logging_config import configure_logging
 from crosstab_tool.sources.registry import build_source
 from crosstab_tool.spec.serde import spec_json_schema
 
@@ -29,6 +31,16 @@ app = typer.Typer(
 )
 console = Console()
 err_console = Console(stderr=True)
+logger = logging.getLogger(__name__)
+
+
+@app.callback()
+def _main(
+    verbose: bool = typer.Option(  # noqa: B008 (typer's standard default pattern)
+        False, "--verbose", "-v", help="Show DEBUG-level logging (queries, per-source detail)."
+    ),
+) -> None:
+    configure_logging(verbose=verbose)
 
 _SUPPORTED_FORMATS = ("parquet", "csv")
 # Everything expected from a bad-but-plausible user input: an invalid/incomplete spec
@@ -90,6 +102,7 @@ def run(
     if out is not None and format not in _SUPPORTED_FORMATS:
         _fail(f"unsupported --format {format!r} (expected one of {_SUPPORTED_FORMATS})")
 
+    logger.info("Loading config: %s", config)
     spec = _or_fail(load_spec, config)
     result: CrosstabResult = _or_fail(run_crosstab, spec)
 
@@ -110,6 +123,7 @@ def run(
 
 
 def _validate(config: Path) -> None:
+    logger.info("Loading config: %s", config)
     spec = load_spec(config)
     source = build_source(spec.source)
     validate_spec(spec, source)
