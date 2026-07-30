@@ -13,7 +13,7 @@ crosstab-tool/
   README.md
   crosstab_tool/
     __init__.py
-    cli.py                    # `crosstab run job.yaml`
+    cli.py                    # `crosstab sql|validate|run job.yaml`
     config/
       schema.py                # pydantic models — the config contract (Req 4.2)
       loader.py                 # YAML/JSON -> validated JobConfig
@@ -23,12 +23,13 @@ crosstab-tool/
       # future: postgres.py, sheets.py, csv_excel.py, s3.py — same interface
     query/
       builder.py                 # JobConfig -> Appendix-A-style SQL (base CTE + UNION ALL)
+      identifiers.py               # check_identifier/quote_literal — SQL-injection-shaped safety for generated SQL
       aggregations.py             # AggFunction -> SQL fragment (Req 4.3)
       registry.py                  # dotted-path custom function resolution (Req 4.2/4.3/4.4)
     compute/
       cross_column.py              # difference/multiply/custom over the aggregated result (Req 4.4)
     output/
-      base.py                       # OutputWriter interface (Req 4.5, 5.3)
+      base.py                       # Writer interface (Req 4.5, 5.3)
       sheets.py                      # Google Sheets (primary destination)
       files.py                        # CSV/Excel (secondary, Req 4.5.2)
     metadata/
@@ -55,7 +56,12 @@ Each module maps to one requirements section so a reviewer can trace
    variable (plus Topline), `UNION ALL`'d and ordered — a direct, literal
    generalization of Appendix A's reference SQL. All aggregation work
    happens in this SQL, executed by Redshift (Req 5.1: push group-by/join
-   to the database, not pandas).
+   to the database, not pandas). Every config value it interpolates into
+   that SQL (table names, join keys, column names, aliases) is checked
+   against `query/identifiers.py`'s `check_identifier` first; free-text
+   labels (category/grouping-variable names) go through `quote_literal`
+   instead, since they're values, not identifiers — see "Identifier and
+   literal safety" below.
 3. `sources/redshift.py` executes that SQL and returns the small,
    already-aggregated result as a DataFrame — never the full base table.
 4. `compute/cross_column.py` applies any configured difference/
@@ -94,6 +100,58 @@ source, a score/counterfactual pointing at a source that doesn't exist, or
 a `cross_column` referencing a column name that isn't a defined
 score/counterfactual.
 
+## Identifier and literal safety
+
+`query/builder.py` interpolates config-supplied values directly into
+generated SQL — there's no parameterized-query placeholder for "the name
+of a column to group by." Since config files don't necessarily go through
+the same review as code, this is a SQL-injection-shaped risk, not just a
+correctness one, and it's handled explicitly rather than left implicit:
+
+- **Identifiers** (table names, join keys/aliases, score/counterfactual
+  columns and names, grouping-variable columns) go through
+  `query/identifiers.py`'s `check_identifier`, which validates against a
+  strict allow-list pattern (letters/digits/underscores, optionally
+  schema-qualified) and raises `SQLGenerationError` — not a best-effort
+  escape — if a value doesn't look like a real identifier.
+- **Free-text values** (category and grouping-variable labels, which
+  appear as SQL string literals rather than identifiers) go through
+  `quote_literal`, which escapes embedded single quotes the standard SQL
+  way. These are deliberately *not* run through `check_identifier`, since
+  labels like `"Voter's Age"` are legitimate text, not malformed
+  identifiers.
+- `DataSourceConfig.query` (the raw-SQL escape hatch, used instead of
+  `table`) is intentionally **not** identifier-checked — it's trusted,
+  hand-written SQL wrapped as a derived table, not an identifier.
+
+`cli.py`'s `validate` command surfaces `SQLGenerationError` as a clean
+CLI error rather than a traceback.
+
+## Validating a config without a live Redshift connection
+
+`crosstab validate <config.yaml>` does three things, in order, none of
+which touch Redshift:
+
+1. Schema-validates the config (`config/loader.py`).
+2. Builds the SQL (`query/builder.py`), which is also where identifier
+   safety (above) gets exercised.
+3. Confirms every `cross_column.inputs` entry resolves against the column
+   names that SQL would actually produce — using
+   `compute/cross_column.py`'s `resolve_column_name`, the same
+   `mean_<name>`-fallback logic the runtime path (`apply_cross_column`)
+   uses. This closes a real gap: a config can reference a valid
+   score/counterfactual `name` that schema validation happily accepts,
+   but that doesn't resolve to an actual output column (e.g. because that
+   score's `aggregations` don't include `mean` and the `cross_column`
+   entry references it by bare name expecting the `mean_` fallback) —
+   previously this only surfaced as a `KeyError` at run time, against a
+   live connection.
+
+This is the command any external tooling (e.g. a config-generation
+assistant) should call into rather than re-implementing schema or
+resolution knowledge separately, since it stays in sync with
+`config/schema.py` by construction.
+
 ## What we kept from the existing repos
 
 Per the recommendation to build fresh: two small, specific patterns were
@@ -113,6 +171,15 @@ pluggable aggregation/cross-column registry, run metadata, the pydantic
 config schema itself) is new — neither repo had a version of it to reuse,
 per the earlier analysis.
 
+**Added later, during cross-branch unification** (this repo also has
+sibling branches, `crosstab-refactor-crm` and `crosstab-tw`, that
+independently rebuilt the same tool — see the unification plan doc for
+the full comparison): `query/identifiers.py`'s `check_identifier`/
+`quote_literal` pair is adapted from `crosstab-tw`'s `sqlgen.py`
+(`_check_identifier`/`_quote_literal`), which was the one piece worth
+carrying forward from that branch specifically — this codebase's own SQL
+generation had the same unvalidated-interpolation gap crosstab-tw's did.
+
 ## Open design questions carried over from Section 6
 
 These are intentionally left as stubs/extension points rather than
@@ -130,6 +197,12 @@ resolved, matching the requirements doc's own "Open Design Questions":
 - **Run metadata field list**: `RunMetadata` currently captures
   `job_name`, `model_version`, `run_timestamp`, `config_hash`, `notes` —
   a minimal set; extend `metadata/run_metadata.py` if more is needed.
+- **Writer dispatch**: `cli.py` currently picks `FileWriter` vs.
+  `GoogleSheetsWriter` with a plain `if`/`else` on
+  `output.destination`. Decided (unification pass) to leave this as-is
+  for now and revisit folding it into `query/registry.py`'s dotted-path
+  pattern the next time a new writer or source type is actually added,
+  rather than migrating it as its own isolated piece of work.
 
 ## Explicitly not built yet (matches v1 non-goals)
 
@@ -138,3 +211,13 @@ statistical significance testing (`ttest`/`chi_square` raise
 `NotImplementedError` today), plotting, and scheduling are all reserved as
 enum values or interface seams but have no implementation — consistent
 with Section 2.2 and Section 7 of the requirements doc.
+
+`crosstab-refactor-crm` (a sibling branch) separately built cube/
+auto-combination groupbys and a counterfactual/comparison engine on top
+of a different, Polars-based architecture. Decided (unification pass,
+see the unification plan doc) not to port either: this repo's existing
+`grouping_variables` + `cross_column` model covers the same ground and
+stays the one going forward. Multi-source support (CSV/Parquet/DataFrame,
+which CRM's branch also has) was similarly decided out of scope for now —
+Redshift-only stands, consistent with this section's original v1
+non-goals.

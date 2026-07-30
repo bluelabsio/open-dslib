@@ -22,7 +22,12 @@ pytest
 
 `examples/model3_universe_tabs.yaml` validates against the schema and
 `query.builder.build_query()` will render it as SQL — see
-`tests/unit/test_builder.py`.
+`tests/unit/test_builder.py`. Or from the command line:
+
+```bash
+crosstab sql examples/model3_universe_tabs.yaml       # SQL preview only, no validation summary
+crosstab validate examples/model3_universe_tabs.yaml  # schema + SQL + cross_column resolution check
+```
 
 Not yet wired up: real basetable column names in the example configs
 (several are placeholders — search for `# placeholder`). Redshift and
@@ -30,8 +35,10 @@ Google Sheets connections work once you provide credentials — see below.
 
 ## Running a job for real
 
-The config wizard (and `scripts/validate_config.py`) never touch Redshift
-— they only validate a config and preview the SQL it would generate.
+The config wizard's validation step (and CI, if this repo gets it) should
+call `crosstab validate <config.yaml>` — it never touches Redshift, it
+only validates a config, previews the SQL it would generate, and confirms
+any `cross_column` entries actually resolve against real output columns.
 Actually running a job (`crosstab run`) needs a live Redshift connection
 and, for the default output, Google Sheets credentials. Two ways to do
 that:
@@ -88,8 +95,9 @@ BlueLabs' Redshift network and shouldn't be handed live credentials.
 If you'd rather not set up a Python environment yet, you can still use
 everything upstream of the Python execution:
 
-1. Use the crosstab-config-wizard skill to get a validated config and its
-   generated SQL preview (`scripts/validate_config.py` prints it).
+1. Use the crosstab-config-wizard skill to get a validated config, or run
+   `crosstab validate configs/your_job.yaml` yourself, to get the
+   generated SQL preview.
 2. Paste that SQL into a DBeaver SQL editor connected to Redshift and run
    it there.
 3. Anything the tool would normally do in Python afterward — cross-column
