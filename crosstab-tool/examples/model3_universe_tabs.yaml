@@ -1,0 +1,89 @@
+# Reproduces the existing hand-written "m3 Universe Tabs" SQL
+# (Requirements Doc v0.2, Appendix A) as a config-driven job.
+#
+# Placeholder column names (marked below) stand in for basetable columns
+# not spelled out in Appendix A / the reference SQL snippet — confirm
+# actual names against c_tfp.co_modeling_basetable_20260622 before running.
+
+job:
+  name: model3_universe_tabs
+  model_version: p_support_v3_20260416
+  notes: >
+    Config-driven generalization of the existing bespoke Model 3
+    Universe Tabs SQL. Grouping variables and ordering mirror Appendix A.
+
+sources:
+  - name: scores
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_tfp.plain_language_support_score_20260416
+  - name: basetable
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_tfp.co_modeling_basetable_20260622
+
+base:
+  from: scores
+  joins:
+    - source: basetable
+      key: voterbase_id
+      how: left
+
+scores:
+  - name: p_support
+    source: scores
+    column: p_support
+  - name: p_support_standardized
+    source: scores
+    column: p_support_standardized
+
+counterfactuals: []
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full
+  - label: "02 Female"
+    column: gender
+  - label: "03 Ethnicity"
+    column: ethnicity
+  - label: "04 Education Modeled"
+    column: education_modeled        
+  - label: "05 Education Area"
+    column: education_area_type           
+  - label: "06 Income"
+    column: income_bucket_full            
+  - label: "07 Urbanicity"
+    column: urbanicity
+  - label: "08 CO Region"
+    column: co_region
+  - label: "09 Party"
+    column: party
+  - label: "10 Is Married"
+    column: is_married
+  - label: "11 Is Homeowner"
+    column: is_homeowner
+  - label: "12 2020 Vote Method"
+    column: dem_vote_method_g2020          
+  - label: "13 2024 Vote Method"        
+    column: dem_vote_method_g2024           
+                                        # so ORDER BY 1, 2 stays unambiguous.
+                                       
+
+aggregations:
+  default: [mean, count]
+
+cross_column: []
+
+output:
+  destination: google_sheets
+  spreadsheet_id: "1DUrNSdyfmtSfyCDvqYqyXG2_7tITd4WXeMRZPMg6hGg"
+  tab: "m3 Universe Tabs"
+  layout: long
+
+run_metadata:
+  capture: true
+  save_sql: true          # writes the exact executed SQL to <artifacts_dir>/<timestamp>_<job_name>.sql
+  artifacts_dir: "runs"   # where per-run metadata JSON (+ saved SQL) lands; default is "runs"
+  notes: "Reproduces Appendix A reference SQL via config"

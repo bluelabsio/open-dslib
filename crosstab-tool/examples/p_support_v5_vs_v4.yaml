@@ -1,0 +1,85 @@
+# Compares the newly re-run p_support_v5 score against the prior
+# p_support_v4 score, both of which live in the same scores table
+# (c_tfp.support_scores_20260715). Broken out by age, party, and
+# homeownership, with a cross-column difference (v5 - v4).
+#
+# Column-name assumptions (basetable demographic columns weren't specified
+# by the requester — "not sure about the exact column names, just use
+# reasonable guesses"):
+#   - age_bucket_full, party, is_homeowner: reused as-is from
+#     examples/model3_universe_tabs.yaml, where they appear unflagged
+#     (i.e. already confirmed against c_tfp.co_modeling_basetable_20260622,
+#     unlike that file's explicitly-marked "# placeholder" columns).
+#   - Join key voterbase_id: the standard key used throughout this repo's
+#     examples for scores <-> basetable joins.
+#   - Demographics themselves are assumed to live in the existing
+#     co_modeling_basetable (not in support_scores_20260715), since the
+#     user only described that table as holding the two scores.
+# Confirm all three against the real basetable schema before running.
+
+job:
+  name: p_support_v5_vs_v4
+  model_version: p_support_v5_20260715
+  notes: >
+    Compares re-run p_support_v5 against prior p_support_v4 (same table,
+    c_tfp.support_scores_20260715), broken out by age/party/homeownership,
+    with a difference column (v5 - v4).
+
+sources:
+  - name: scores
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_tfp.support_scores_20260715
+  - name: basetable
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_tfp.co_modeling_basetable_20260622
+
+base:
+  from: scores
+  joins:
+    - source: basetable
+      key: voterbase_id
+      how: left
+
+scores:
+  - name: p_support_v5
+    source: scores
+    column: p_support_v5
+    kind: numeric
+
+counterfactuals:
+  - name: p_support_v4
+    source: scores
+    column: p_support_v4
+    kind: numeric
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full        # reused from model3_universe_tabs.yaml (not a placeholder there)
+  - label: "09 Party"
+    column: party                  # reused from model3_universe_tabs.yaml (not a placeholder there)
+  - label: "11 Is Homeowner"
+    column: is_homeowner           # reused from model3_universe_tabs.yaml (not a placeholder there)
+
+aggregations:
+  default: [mean, count]
+
+cross_column:
+  - name: diff_v5_vs_v4
+    op: difference
+    inputs: [p_support_v5, p_support_v4]   # v5 - v4, i.e. positive = v5 scores higher
+
+output:
+  destination: google_sheets
+  spreadsheet_id: "REPLACE_WITH_SHEET_ID"
+  tab: "p_support v5 vs v4"
+  layout: long
+
+run_metadata:
+  capture: true
+  save_sql: true
+  artifacts_dir: "runs"
+  notes: "p_support_v5 vs p_support_v4 comparison, requested 2026-07-30"

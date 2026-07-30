@@ -1,0 +1,38 @@
+[project]
+name = "crosstab-tool"
+version = "0.1.0"
+description = "Configuration-driven crosstab / counterfactual reporting tool for Redshift model scores."
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2",
+    "pyyaml",
+    "sqlalchemy>=2",
+    "sqlalchemy-redshift",
+    "psycopg2-binary",
+    "certifi",
+    "pandas",
+    "gspread",
+    "google-auth",
+    "click",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+# Reserved for the Section 5.1.1 row-level custom-function escape hatch —
+# not a v1 dependency, added only if/when a custom aggregation needs it.
+vectorized = ["duckdb", "polars"]
+
+[project.scripts]
+crosstab = "crosstab_tool.cli:cli"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# Without this, setuptools' flat-layout auto-discovery sees configs/,
+# examples/, docs/, tests/ alongside crosstab_tool/ and refuses to guess
+# which top-level directories are meant to be installable packages —
+# `pip install -e .` fails outright. Only crosstab_tool/ is a package.
+include = ["crosstab_tool*"]
