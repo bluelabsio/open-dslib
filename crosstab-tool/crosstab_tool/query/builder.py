@@ -27,6 +27,7 @@ def build_base_cte(config: JobConfig) -> str:
     sources_by_name = {s.name: s for s in config.sources}
     base_source = check_identifier(config.base.from_, "base.from")
     froms = [f"FROM {_table_ref(sources_by_name[base_source])} AS {base_source}"]
+    select_aliases = [base_source]
     for join in config.base.joins:
         keys = join.key if isinstance(join.key, list) else [join.key]
         keys = [check_identifier(k, f"join '{join.source}' key") for k in keys]
@@ -34,7 +35,13 @@ def build_base_cte(config: JobConfig) -> str:
         join_alias = check_identifier(join.source, f"join '{join.source}' alias")
         table_ref = _table_ref(sources_by_name[join.source])
         froms.append(f"{join.how.upper()} JOIN {table_ref} AS {join_alias} USING({using})")
-    return f"SELECT {base_source}.*\n" + "\n".join(froms)
+        select_aliases.append(join_alias)
+    # Select every joined source's columns, not just the base source's --
+    # grouping variables and counterfactuals commonly live on a joined
+    # table (e.g. a demographic basetable), and without this they can
+    # never resolve inside `base` at all, regardless of column name.
+    select_clause = ", ".join(f"{alias}.*" for alias in select_aliases)
+    return f"SELECT {select_clause}\n" + "\n".join(froms)
 
 
 def _agg_selects(columns: list[ColumnRef], defaults: list) -> list[str]:
@@ -73,7 +80,11 @@ def build_query(config: JobConfig) -> str:
 
     for gv in config.grouping_variables:
         gv_column = check_identifier(gv.column, f"grouping variable '{gv.label}'.column")
-        blocks.append(build_group_select(config, gv.label, gv_column))
+        # Every block's `level` value is UNION ALL'd together, so it must be
+        # a consistent type across blocks; the Topline row's is a string
+        # literal, so non-text grouping columns (boolean/integer/etc.) need
+        # an explicit cast or the UNION fails outright.
+        blocks.append(build_group_select(config, gv.label, f"CAST({gv_column} AS VARCHAR)"))
 
     union = "\nUNION ALL\n".join(blocks)
     return f"WITH base AS (\n{base_cte}\n)\n{union}\nORDER BY 1, 2"

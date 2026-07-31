@@ -10,11 +10,11 @@ sources:
   - name: scores
     type: redshift
     connection: REDSHIFT_MAIN
-    table: c_tfp.plain_language_support_score_20260715
+    table: modeling.tfp_plain_language_support_score_20260416
   - name: basetable
     type: redshift
     connection: REDSHIFT_MAIN
-    table: c_tfp.co_modeling_basetable_20260622
+    table: modeling.tfp_modeling_basetable_20260622
 
 base:
   from: scores
@@ -28,11 +28,11 @@ scores:
     source: scores
     column: p_support
 
-counterfactuals:
-  - name: p_support_prior
-    source: scores
-    column: p_support_v3
-    kind: numeric
+#counterfactuals:
+#  - name: p_support_prior
+#    source: scores
+#    column: p_support_v3
+#    kind: numeric
 
 include_topline: true
 
@@ -45,14 +45,14 @@ grouping_variables:
 aggregations:
   default: [mean, count]
 
-cross_column:
-  - name: diff_vs_prior
-    op: difference
-    inputs: [p_support, p_support_prior]
+#cross_column:
+#  - name: diff_vs_prior
+#    op: difference
+#    inputs: [p_support, p_support_prior]
 
 output:
   destination: google_sheets
-  spreadsheet_id: "REPLACE_WITH_SHEET_ID"
+  spreadsheet_id: "m3Universetabs"
   tab: "p_support v4 vs v3"
   layout: long
 

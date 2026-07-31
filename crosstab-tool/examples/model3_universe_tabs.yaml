@@ -1,13 +1,12 @@
 # Reproduces the existing hand-written "m3 Universe Tabs" SQL
 # (Requirements Doc v0.2, Appendix A) as a config-driven job.
 #
-# Placeholder column names (marked below) stand in for basetable columns
-# not spelled out in Appendix A / the reference SQL snippet — confirm
-# actual names against c_tfp.co_modeling_basetable_20260622 before running.
+# Grouping column names below are confirmed against the actual
+# modeling.tfp_modeling_basetable_20260622 schema.
 
 job:
   name: model3_universe_tabs
-  model_version: p_support_v3_20260416
+  model_version: plain_language_support_score_20260416
   notes: >
     Config-driven generalization of the existing bespoke Model 3
     Universe Tabs SQL. Grouping variables and ordering mirror Appendix A.
@@ -16,11 +15,11 @@ sources:
   - name: scores
     type: redshift
     connection: REDSHIFT_MAIN
-    table: c_tfp.plain_language_support_score_20260416
+    table: modeling.tfp_plain_language_support_score_20260416
   - name: basetable
     type: redshift
     connection: REDSHIFT_MAIN
-    table: c_tfp.co_modeling_basetable_20260622
+    table: modeling.tfp_modeling_basetable_20260622
 
 base:
   from: scores
@@ -45,31 +44,29 @@ grouping_variables:
   - label: "01 Age"
     column: age_bucket_full
   - label: "02 Female"
-    column: gender
+    column: tsmart_female
   - label: "03 Ethnicity"
-    column: ethnicity
+    column: combined_ethnicity_4way
   - label: "04 Education Modeled"
-    column: education_modeled        
+    column: education_modeled
   - label: "05 Education Area"
-    column: education_area_type           
+    column: education_area_type
   - label: "06 Income"
-    column: income_bucket_full            
+    column: income_bucket_full
   - label: "07 Urbanicity"
-    column: urbanicity
+    column: reg_nyt_urbanicity
   - label: "08 CO Region"
-    column: co_region
+    column: co_region_4
   - label: "09 Party"
-    column: party
+    column: combined_party
   - label: "10 Is Married"
     column: is_married
   - label: "11 Is Homeowner"
-    column: is_homeowner
+    column: is_home_owner
   - label: "12 2020 Vote Method"
-    column: dem_vote_method_g2020          
-  - label: "13 2024 Vote Method"        
-    column: dem_vote_method_g2024           
-                                        # so ORDER BY 1, 2 stays unambiguous.
-                                       
+    column: vote_method_combined_2020_gen_ts_vrvh
+  - label: "13 2024 Vote Method"
+    column: vote_method_combined_2024_gen_ts_vrvh
 
 aggregations:
   default: [mean, count]
@@ -77,9 +74,8 @@ aggregations:
 cross_column: []
 
 output:
-  destination: google_sheets
-  spreadsheet_id: "1DUrNSdyfmtSfyCDvqYqyXG2_7tITd4WXeMRZPMg6hGg"
-  tab: "m3 Universe Tabs"
+  destination: csv
+  path: "output/model3_universe_tabs.csv"
   layout: long
 
 run_metadata:
