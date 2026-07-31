@@ -1,103 +1,155 @@
-# crosstab-tool (sketch)
+# crosstab-tool
 
-Configuration-driven crosstab / counterfactual reporting tool for
-Redshift model scores. This is an early project skeleton, not a finished
-build — see `docs/architecture.md` for the design and its mapping back to
-`Crosstab_Tool_Requirements_v0_2`.
+A config-driven tool for **universe crosstabbing**: it takes a model score
+(and optionally a counterfactual comparison score) in Redshift, breaks it
+out by whatever demographic/behavioral grouping variables you choose, and
+writes the resulting crosstab report to Google Sheets, Excel, or CSV.
 
-## Layout
+The whole job — which tables, which columns, which breakdowns, where the
+output goes — is described in one YAML config file. Nothing about a
+specific job is hard-coded in the tool itself. Under the hood:
 
-- `crosstab_tool/` — the package (config, sources, query, compute, output, metadata, cli)
-- `examples/` — sample job configs, including a config-driven version of the
-  existing "m3 Universe Tabs" reference SQL (Appendix A)
-- `tests/` — unit tests
-- `docs/architecture.md` — module map, data flow, config schema summary, open questions
+- **SQL does the heavy lifting.** The config compiles to a single SQL query
+  (one join, one `SELECT ... GROUP BY` per grouping variable, `UNION ALL`'d
+  together) that runs entirely in Redshift — the tool never pulls raw,
+  row-level data into Python.
+- **Python handles the small stuff afterward**: any cross-column
+  computation (e.g. the difference between two scores) on the already-
+  aggregated result, and writing that result out to Sheets/Excel/CSV.
 
-## Try it
+You can write a job config by hand, or have the `crosstab-config-wizard`
+Claude Code skill interview you and generate + validate one for you (see
+below) — either way, the result is the same kind of YAML file.
+
+## 1. Set up your environment
 
 ```bash
+cd crosstab-tool
 pip install -e ".[dev]"
-pytest
+cp .env.example .env
 ```
 
-`examples/model3_universe_tabs.yaml` validates against the schema and
-`query.builder.build_query()` will render it as SQL — see
-`tests/unit/test_builder.py`. Or from the command line:
+Then fill in `.env`:
+
+- **Redshift credentials**, prefixed to match whatever `connection:` name
+  your job config uses (`REDSHIFT_MAIN` in the example configs):
+  ```
+  REDSHIFT_MAIN_HOST=...
+  REDSHIFT_MAIN_DB=...
+  REDSHIFT_MAIN_USER=...
+  REDSHIFT_MAIN_PW=...
+  REDSHIFT_MAIN_PORT=5439        # optional, defaults to 5439
+  ```
+- **Google auth**, only needed if a job's output goes to Sheets:
+  ```
+  GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+  ```
+  This must be a service account (not a personal login or a plain API
+  key), with the Sheets and Drive APIs enabled on its GCP project. The
+  target spreadsheet must already exist and already be shared with the
+  service account's email as an Editor — this branch's Sheets writer opens
+  an existing spreadsheet by ID; it doesn't create or auto-share one for
+  you.
+
+You do **not** need to run `source .env` — `crosstab` loads it
+automatically (via `python-dotenv`) the moment you run any subcommand, as
+long as `.env` is in your current directory. `.env` is already
+`.gitignore`d; never commit real credentials.
+
+## 2. Get a job config
+
+A job config is one YAML file describing the tables, scores, groupings,
+and output for a single crosstab run. Two ways to get one:
+
+### Option A — the config wizard skill (recommended if you're not sure of the schema)
+
+Invoke the `crosstab-config-wizard` skill and it'll interview you, then
+write and validate a config for you. It asks about these in order (skipping
+whatever obviously doesn't apply to your job):
+
+1. **Job identity** — what's this job/report called, and what model or
+   score version is it for?
+2. **Data** — which Redshift table has the score(s)? Is there a separate
+   table with the demographic/grouping columns, and if so, what's the join
+   key and join type (left join, etc.)?
+3. **Scores** — which score column(s) do you want summarized, with a
+   human-readable name for each?
+4. **Counterfactuals** *(optional)* — anything to compare the score
+   against (a prior model version, a benchmark, a labeled category)? Numeric
+   or categorical?
+5. **Grouping variables** — what breakdowns do you want (age, party,
+   region, etc.), and in what order? Order controls the numbered category
+   labels in the output. Also whether you want the automatic "Topline"
+   (whole-population) row — default yes.
+6. **Aggregations** — mean + count is the default; only comes up if you
+   want something else (median, sum, frequency, a custom function).
+7. **Cross-column computation** *(optional)* — a computed difference or
+   ratio between two of the scores/counterfactuals.
+8. **Output** — Google Sheets (default, needs a spreadsheet ID + tab name)
+   or CSV/Excel (needs a file path). Long (tidy) layout is the default
+   shape.
+9. **Run metadata** — whether to capture run metadata and save the exact
+   SQL executed; the defaults (yes to both, written to a `runs/` folder)
+   are almost always fine.
+
+The skill saves the resulting `<job_name>.yaml` wherever you ask — your
+current working directory, this repo's `configs/` directory
+(`open-dslib/crosstab-tool/configs/`), or both — and validates it against
+the tool's real schema before handing it back, so you're not left guessing
+whether it'll actually run.
+
+### Option B — write it yourself
+
+Copy an existing config close to what you want from `examples/` or
+`configs/` and edit it — usually faster than starting from a blank file,
+especially for the grouping-variables list. See `docs/architecture.md` for
+the full schema. Note: some example configs still have placeholder column
+names (flagged in comments) that haven't been confirmed against the real
+table schema yet.
+
+## 3. Validate before running
+
+Check a config is well-formed and preview the SQL it would generate,
+without touching Redshift:
 
 ```bash
-crosstab sql examples/model3_universe_tabs.yaml       # SQL preview only, no validation summary
-crosstab validate examples/model3_universe_tabs.yaml  # schema + SQL + cross_column resolution check
+crosstab validate configs/your_job.yaml   # schema + SQL + cross_column resolution check; prints an SQL preview
+crosstab sql configs/your_job.yaml        # writes the generated SQL to <job_name>.sql (or -o <path>)
 ```
 
-Not yet wired up: real basetable column names in the example configs
-(several are placeholders — search for `# placeholder`). Redshift and
-Google Sheets connections work once you provide credentials — see below.
+## 4. Run it
 
-## Running a job for real
+```bash
+crosstab run configs/your_job.yaml
+```
 
-The config wizard's validation step (and CI, if this repo gets it) should
-call `crosstab validate <config.yaml>` — it never touches Redshift, it
-only validates a config, previews the SQL it would generate, and confirms
-any `cross_column` entries actually resolve against real output columns.
-Actually running a job (`crosstab run`) needs a live Redshift connection
-and, for the default output, Google Sheets credentials. Two ways to do
-that:
+Do this from wherever you already have legitimate Redshift access set up
+(your own machine, Positron, a shared analytics box) — not from an
+environment with no route to your Redshift network.
 
-### Option A — run the tool itself (gets you the full feature set)
+This connects to Redshift, runs the generated query, applies any
+cross-column computation, and writes the result to whichever
+`output.destination` the config specifies:
 
-This gets you everything: automatic Sheets writing, cross-column
-computation, run metadata capture. Do this from wherever you already have
-legitimate Redshift access set up (your own machine, Positron, a shared
-analytics box) — not from a Claude sandbox, which has no route to
-BlueLabs' Redshift network and shouldn't be handed live credentials.
+- **`google_sheets`** — writes into the configured spreadsheet/tab (must
+  already exist and be shared with the service account, per step 1).
+- **`csv`** / **`excel`** — writes to the configured `path`; no Google
+  setup needed for these.
 
-1. **Install** (Python 3.10+):
-   ```bash
-   cd crosstab-tool
-   pip install -e ".[dev]"
-   ```
-   In Positron: open this folder, make sure its Python interpreter is
-   selected (bottom-right interpreter picker, or `Cmd+Shift+P` → "Python:
-   Select Interpreter"), then run the command above in Positron's
-   integrated terminal.
+If `run_metadata.capture` is on (the default), each run also writes a
+metadata JSON file — and, if `save_sql` is on (also the default), the exact
+SQL that was executed — to the job's `artifacts_dir` (default `runs/`,
+created relative to wherever you run `crosstab` from). This is what makes
+a report traceable back to what produced it later.
 
-2. **Set Redshift credentials**, prefixed with whatever `connection:` name
-   your config uses (e.g. `REDSHIFT_MAIN` in the example configs). Copy
-   `.env.example` to `.env` and fill in real values:
-   ```bash
-   cp .env.example .env
-   # then edit .env with your actual host/db/user/password
-   ```
-   `crosstab run` loads `.env` automatically (via `python-dotenv`) — no
-   `export`/`source` needed. `.env` is already `.gitignore`d so real
-   credentials never get committed. Avoid pasting credentials inline in
-   the terminal where they'd land in shell history.
+## No Python setup yet? Use DBeaver for the SQL part
 
-3. **Set up Google Sheets credentials** (only needed if `output.destination:
-   google_sheets`, the default). `gspread.service_account()` looks for a
-   service account key at `~/.config/gspread/service_account.json` by
-   default — ask whoever manages BlueLabs' Google Cloud service accounts
-   for one scoped to Sheets, or point `GOOGLE_APPLICATION_CREDENTIALS` at
-   an existing key. Skip this entirely if you set `destination: csv` or
-   `excel` in the config instead.
+You can still get value out of this tool before setting up a Python
+environment:
 
-4. **Run it:**
-   ```bash
-   crosstab run configs/your_job.yaml
-   ```
-   Errors here are usually a missing/misnamed basetable column (check the
-   config's `# placeholder` comments first) or a credentials/permission
-   issue — bring the error back and I can help debug the config or the
-   tool's logic, without ever needing the credentials myself.
-
-### Option B — DBeaver, no Python setup
-
-If you'd rather not set up a Python environment yet, you can still use
-everything upstream of the Python execution:
-
-1. Use the crosstab-config-wizard skill to get a validated config, or run
-   `crosstab validate configs/your_job.yaml` yourself, to get the
-   generated SQL preview.
+1. Use the crosstab-config-wizard skill (or `crosstab validate`/`crosstab
+   sql`, once you do have the tool installed) to get a validated config and
+   its generated SQL.
 2. Paste that SQL into a DBeaver SQL editor connected to Redshift and run
    it there.
 3. Anything the tool would normally do in Python afterward — cross-column
