@@ -22,9 +22,9 @@ sources:
     table: modeling.tfp_modeling_basetable_20260622
 
 base:
-  from: scores
+  from: basetable
   joins:
-    - source: basetable
+    - source: scores
       key: voterbase_id
       how: left
 
