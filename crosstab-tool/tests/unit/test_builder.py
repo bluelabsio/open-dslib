@@ -20,17 +20,24 @@ def test_model3_universe_tabs_query_shape():
     config = load_job_config(EXAMPLES / "model3_universe_tabs.yaml")
     sql = build_query(config)
 
-    # base CTE joins scores to basetable (aliased to their config names) on
-    # the reference key, resolved to each source's actual physical table
-    assert "WITH base AS" in sql
+    # base table joins scores to basetable (aliased to their config names) on
+    # the reference key, resolved to each source's actual physical table,
+    # materialized once via CREATE TEMP TABLE rather than a WITH CTE (a CTE
+    # would be re-inlined -- and its joins re-run -- for every UNION ALL block)
+    assert "CREATE TEMP TABLE base AS" in sql
     assert "FROM modeling.tfp_plain_language_support_score_20260416 AS scores" in sql
     assert (
         "LEFT JOIN modeling.tfp_modeling_basetable_20260622 AS basetable "
         "USING(voterbase_id)" in sql
     )
-    # base CTE must select every joined source's columns, not just the base
-    # source's -- grouping variables commonly live on the joined table
-    assert "SELECT scores.*, basetable.*" in sql
+    # base table selects only the columns scores/counterfactuals/grouping
+    # variables actually reference, each qualified by its declared source --
+    # not a blind `*`/`alias.*` over the whole join chain, which would
+    # surface duplicate column names for any two joined tables that happen
+    # to share an unrelated column name (CREATE TEMP TABLE, unlike a CTE,
+    # is a real table and rejects those outright)
+    assert "scores.p_support" in sql
+    assert "basetable.age_bucket_full" in sql
 
     # topline row present, matching Appendix A's '00 Topline' / GROUP BY 1,2
     assert "'00 Topline' AS category" in sql
@@ -53,7 +60,7 @@ def test_model3_universe_tabs_query_shape():
 
     # unioned and ordered exactly like the reference SQL
     assert sql.count("UNION ALL") == len(config.grouping_variables)  # topline + N-1 unions = N joins
-    assert sql.strip().endswith("ORDER BY 1, 2")
+    assert sql.strip().endswith("ORDER BY 1, 2;")
 
 
 def test_counterfactual_cross_column_example_loads():

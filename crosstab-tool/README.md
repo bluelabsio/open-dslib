@@ -51,7 +51,7 @@ Then fill in `.env`:
   an existing spreadsheet by ID; it doesn't create or auto-share one for
   you.
 
-You do **not** need to run `source .env` — `crosstab` loads it
+You do not need to run `source .env` — `crosstab` loads it
 automatically (via `python-dotenv`) the moment you run any subcommand, as
 long as `.env` is in your current directory. `.env` is already
 `.gitignore`d; never commit real credentials.

@@ -59,10 +59,13 @@ include_topline: true
 grouping_variables:
   - label: "01 Age"
     column: age_bucket_full        # reused from model3_universe_tabs.yaml (not a placeholder there)
+    source: basetable
   - label: "09 Party"
     column: party                  # reused from model3_universe_tabs.yaml (not a placeholder there)
+    source: basetable
   - label: "11 Is Homeowner"
     column: is_homeowner           # reused from model3_universe_tabs.yaml (not a placeholder there)
+    source: basetable
 
 aggregations:
   default: [mean, count]

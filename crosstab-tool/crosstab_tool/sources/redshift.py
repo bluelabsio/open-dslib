@@ -38,6 +38,14 @@ class RedshiftSource(DataSource):
         return {"sslrootcert": sslrootcert}
 
     def execute(self, sql: str) -> pd.DataFrame:
+        # `sql` may be multiple `;`-separated statements (e.g. a
+        # CREATE TEMP TABLE materializing the join, followed by the SELECT
+        # that reads from it) that must run on the same session, since a
+        # temp table only exists for the connection that created it.
+        # psycopg2 sends the whole string to Redshift in one round trip and
+        # fetches results for the last statement only -- exactly what's
+        # needed here, and why this isn't split into separate `execute()`
+        # calls on `conn`.
         engine = create_engine(self._engine_url(), connect_args=self._connect_args())
         with engine.connect() as conn:
             return pd.read_sql(text(sql), conn)

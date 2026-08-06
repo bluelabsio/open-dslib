@@ -6,7 +6,7 @@
 
 job:
   name: model3_universe_tabs
-  model_version: p_support_v3_20260416
+  model_version: tfp_plain_language_support_score_20260416
   notes: >
     Config-driven generalization of the existing bespoke Model 3
     Universe Tabs SQL. Grouping variables and ordering mirror Appendix A.
@@ -43,31 +43,43 @@ include_topline: true
 grouping_variables:
   - label: "01 Age"
     column: age_bucket_full
+    source: basetable
   - label: "02 Female"
     column: tsmart_female
+    source: basetable
   - label: "03 Ethnicity"
     column: combined_ethnicity_4way
+    source: basetable
   - label: "04 Education Modeled"
     column: education_modeled
+    source: basetable
   - label: "05 Education Area"
     column: education_area_type
+    source: basetable
   - label: "06 Income"
     column: income_bucket_full
+    source: basetable
   - label: "07 Urbanicity"
     column: reg_nyt_urbanicity
+    source: basetable
   - label: "08 CO Region"
     column: co_region_4
+    source: basetable
   - label: "09 Party"
     column: combined_party
+    source: basetable
   - label: "10 Is Married"
     column: is_married
+    source: basetable
   - label: "11 Is Homeowner"
     column: is_home_owner
+    source: basetable
   - label: "12 2020 Vote Method"
     column: vote_method_combined_2020_gen_ts_vrvh
+    source: basetable
   - label: "13 2024 Vote Method"
     column: vote_method_combined_2024_gen_ts_vrvh
-
+    source: basetable
 aggregations:
   default: [mean, count]
 

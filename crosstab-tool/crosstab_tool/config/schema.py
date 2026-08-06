@@ -123,6 +123,7 @@ class GroupingVariable(BaseModel):
 
     label: str  # e.g. "01 Age" — numbering controls ORDER BY 1, 2
     column: str
+    source: str | None = None  # which DataSourceConfig it lives in; None => base.from_
     include_topline: bool | None = None  # None => inherit job-level default
 
 
@@ -229,6 +230,12 @@ class JobConfig(BaseModel):
             if col.source not in source_names:
                 raise ValueError(
                     f"column '{col.name}' references undefined source '{col.source}'"
+                )
+
+        for gv in self.grouping_variables:
+            if gv.source is not None and gv.source not in source_names:
+                raise ValueError(
+                    f"grouping_variable '{gv.label}' references undefined source '{gv.source}'"
                 )
 
         col_names = {c.name for c in all_columns}

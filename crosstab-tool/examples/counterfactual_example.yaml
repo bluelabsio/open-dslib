@@ -39,8 +39,10 @@ include_topline: true
 grouping_variables:
   - label: "01 Age"
     column: age_bucket_full
+    source: basetable
   - label: "09 Party"
     column: party
+    source: basetable
 
 aggregations:
   default: [mean, count]

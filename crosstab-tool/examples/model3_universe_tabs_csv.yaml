@@ -58,34 +58,48 @@ include_topline: true
 grouping_variables:
   - label: "01 Age"
     column: age_bucket_full
+    source: basetable
   - label: "02 Female"
     column: gender
+    source: basetable
   - label: "03 Ethnicity"
     column: ethnicity
+    source: basetable
   - label: "04 Education Modeled"
     column: education_modeled          # placeholder — confirm column name
+    source: basetable
   - label: "05 Education Area"
     column: education_area             # placeholder — confirm column name
+    source: basetable
   - label: "06 Income"
     column: income_bucket              # placeholder — confirm column name
+    source: basetable
   - label: "07 Urbanicity"
     column: urbanicity
+    source: basetable
   - label: "08 CO Region"
     column: co_region
+    source: basetable
   - label: "09 Party"
     column: party
+    source: basetable
   - label: "10 Is Married"
     column: is_married
+    source: basetable
   - label: "11 Is Homeowner"
     column: is_homeowner
+    source: basetable
   - label: "12 2020 Vote Method"
     column: vote_method_2020           # placeholder — confirm column name
+    source: basetable
   - label: "13 2024 Vote Method"        # Appendix A lists this as "12" too
     column: vote_method_2024           # (likely a typo); renumbered 13 here
+    source: basetable
                                         # so ORDER BY 1, 2 stays unambiguous.
                                         # placeholder — confirm column name
   - label: "14 Education Level"
     column: education_level            # placeholder — confirm column name;
+    source: basetable
                                         # newly added per request. Distinct
                                         # from "04 Education Modeled" (a
                                         # modeled/predicted field) and
@@ -93,7 +107,6 @@ grouping_variables:
                                         # study) already above — confirm
                                         # this isn't a duplicate of one of
                                         # those before running.
-
 aggregations:
   default: [mean, count]
 
