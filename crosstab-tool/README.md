@@ -64,7 +64,10 @@ and output for a single crosstab run. Two ways to get one:
 ### Option A — the config wizard skill (recommended if you're not sure of the schema)
 
 Invoke the `crosstab-config-wizard` skill and it'll interview you, then
-write and validate a config for you. It asks about these in order (skipping
+write and validate a config for you. Make sure to run the skill 
+with Claude Code or Cowork, so that it can locate the open-dslib 
+repo on your computer. However, you don't have to change your 
+working directory. It asks about these in order (skipping
 whatever obviously doesn't apply to your job):
 
 1. **Job identity** — what's this job/report called, and what model or
