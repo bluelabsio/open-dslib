@@ -105,8 +105,9 @@ whether it'll actually run.
 
 Copy an existing config close to what you want from `examples/` or
 `configs/` and edit it — usually faster than starting from a blank file,
-especially for the grouping-variables list. See `docs/architecture.md` for
-the full schema. Note: some example configs still have placeholder column
+especially for the grouping-variables list. Alternatively, you can
+build off of config_reference.yaml, which is the file that the Claude skill 
+reads to bulid a config. Note: some example configs still have placeholder column
 names (flagged in comments) that haven't been confirmed against the real
 table schema yet.
 

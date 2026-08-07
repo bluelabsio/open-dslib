@@ -1,0 +1,117 @@
+# merge_tester — multi-table score merge test: five score tables left-joined
+# onto the 2026-03-12 political modeling frame on voterbase_id, broken out by
+# standard demographic/behavioral banners plus a Hulu consumption bucket from
+# the amazon influence-scores table.
+
+job:
+  name: merge_tester
+  model_version: v1
+
+sources:
+  - name: base_frame
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: modeling_snapshots.modeling_frame_pol_20260312
+  - name: amazon_infl
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: amazon.int_person_amazon_infl_scores_joined_20250114
+  - name: harris_2024
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_ambridge.harris_2024_combined_final_adjusted_scores
+  - name: dscc_2022
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_dscc2024.dscc_scores_2022
+  - name: paramount_intent
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_paramount.tg_intent_scores
+  - name: sustainability
+    type: redshift
+    connection: REDSHIFT_MAIN
+    table: c_sustainability.sustainability_scores_20250812
+
+base:
+  from: base_frame
+  joins:
+    - source: amazon_infl
+      key: voterbase_id
+      how: left
+    - source: harris_2024
+      key: voterbase_id
+      how: left
+    - source: dscc_2022
+      key: voterbase_id
+      how: left
+    - source: paramount_intent
+      key: voterbase_id
+      how: left
+    - source: sustainability
+      key: voterbase_id
+      how: left
+
+scores:
+  - name: model_educ_bachelor_static
+    source: amazon_infl
+    column: model_educ_bachelor_static
+  - name: adjusted_score_2024
+    source: harris_2024
+    column: adjusted_score_2024
+  - name: clarity_2022_turnout
+    source: dscc_2022
+    column: clarity_2022_turnout
+  - name: intent_score
+    source: paramount_intent
+    column: intent_score
+  - name: sustainability_score
+    source: sustainability
+    column: sustainability_score
+
+counterfactuals: []
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full
+  - label: "02 Female"
+    column: tsmart_female
+  - label: "03 Ethnicity"
+    column: combined_ethnicity_4way
+  - label: "04 Education Modeled"
+    column: education_modeled
+  - label: "05 Education Area"
+    column: education_area_type
+  - label: "06 Income"
+    column: income_bucket_full
+  - label: "07 Urbanicity"
+    column: reg_nyt_urbanicity
+  - label: "08 Party"
+    column: combined_party
+  - label: "09 Is Married"
+    column: is_married
+  - label: "10 Is Homeowner"
+    column: is_home_owner
+  - label: "11 2020 Vote Method"
+    column: vote_method_combined_2020_gen_ts_vrvh
+  - label: "12 Hulu (standardized, bucketed)"
+    column: comm_hulu_standardized_bucketed_static   # lives in amazon_infl (joined), not the base
+    source: amazon_infl
+
+aggregations:
+  default: [mean, count]
+
+cross_column: []
+
+output:
+  destination: google_sheets
+  spreadsheet_id: 1njsv30tg75dkxALnMVck-VV-aI1lwaQSYLqc6NEipcc
+  tab: "m3 Universe Tabs"
+  layout: long
+
+run_metadata:
+  capture: true
+  save_sql: true
+  artifacts_dir: "runs"
