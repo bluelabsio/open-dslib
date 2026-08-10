@@ -131,8 +131,7 @@ Do this from wherever you already have legitimate Redshift access set up
 (your own machine, Positron, a shared analytics box) — not from an
 environment with no route to your Redshift network. Additionally, you can
 instruct Claude to run this after creating the config file, regardless of
-your current working directory. (Sheets upload is best suited for this use
-as a CSV will be written into the crosstab-tool folder anyway)
+your current working directory.
 
 This connects to Redshift, runs the generated query, applies any
 cross-column computation, and writes the result to whichever
