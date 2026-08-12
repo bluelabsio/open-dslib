@@ -127,6 +127,9 @@ crosstab sql configs/your_job.yaml        # writes the generated SQL to <job_nam
 crosstab run configs/your_job.yaml
 ```
 
+Make sure that you are running this command out of the crosstab-tool working directory (not open-dslib), 
+as the tool will write /output and /runs to the user's working directory by default. 
+
 Do this from wherever you already have legitimate Redshift access set up
 (your own machine, Positron, a shared analytics box) — not from an
 environment with no route to your Redshift network. Additionally, you can
