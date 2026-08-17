@@ -17,6 +17,7 @@ description: >-
   cross-column comparison) rather than hand-editing the YAML yourself.
 ---
 
+
 # Crosstab config wizard
 
 You're helping someone who knows their data (which Redshift tables, which
