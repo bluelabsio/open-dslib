@@ -56,7 +56,29 @@ automatically (via `python-dotenv`) the moment you run any subcommand, as
 long as `.env` is in your current directory. `.env` is already
 `.gitignore`d; never commit real credentials.
 
-## 2. Get a job config
+## 2. Set up the Claude skill
+
+When you pull the open-dslib repository, the Claude skill is contained within
+the crosstab-config-wizard folder. However, when Claude reads a skill, it reads
+from your personal .claude/skills folder. In order to redirect Claude to this
+repository, regardless of what working directory you are using, use a symlink:
+
+```
+ln -s ~/open-dslib/crosstab-tool/crosstab-config-wizard ~/.claude/skills/crosstab-config-wizard 
+```
+
+If for some reason you already have access to the crosstab-config-wizard skill externally
+and it is already in your .claude/skills folder, you can rename it to preserve that version
+or delete it and rerun the symlink. Otherwise, a symlink will be created at .claude/skills/crosstab-config-wizard/crosstab-config-wizard.
+
+```
+rm -rf ~/.claude/skills/crosstab-config-wizard # to delete the existing folder
+```
+
+Then, when you pull from GitHub, any changes to the skill will also be reflected in your
+personal .claude folder, and you can push changes as normal.
+
+## 3. Get a job config
 
 A job config is one YAML file describing the tables, scores, groupings,
 and output for a single crosstab run. Two ways to get one:
@@ -111,7 +133,7 @@ reads to bulid a config. Note: some example configs still have placeholder colum
 names (flagged in comments) that haven't been confirmed against the real
 table schema yet.
 
-## 3. Validate before running
+## 4. Validate before running
 
 Check a config is well-formed and preview the SQL it would generate,
 without touching Redshift:
@@ -121,14 +143,11 @@ crosstab validate configs/your_job.yaml   # schema + SQL + cross_column resoluti
 crosstab sql configs/your_job.yaml        # writes the generated SQL to <job_name>.sql (or -o <path>)
 ```
 
-## 4. Run it
+## 5. Run it
 
 ```bash
 crosstab run configs/your_job.yaml
 ```
-
-Make sure that you are running this command out of the crosstab-tool working directory (not open-dslib), 
-as the tool will write /output and /runs to the user's working directory by default. 
 
 Do this from wherever you already have legitimate Redshift access set up
 (your own machine, Positron, a shared analytics box) — not from an
