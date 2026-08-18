@@ -51,6 +51,41 @@ Then fill in `.env`:
   an existing spreadsheet by ID; it doesn't create or auto-share one for
   you.
 
+  **Service Account Setup/Information**
+
+  A [service account](https://docs.cloud.google.com/iam/docs/service-account-overview) is a special Google account
+  operated by a computer or application and attached to a Google Cloud project.
+  In this case, we use the gspread Python package to access the Google API as the service
+  account.
+
+  First, enable the Google Drive and Google Sheets API within your project. Navigate from the sidebar to
+  APIs & Services -> Library and search for the Drive and Sheets APIs. They can also be found and activated at
+
+  https://console.cloud.google.com/apis/library/drive.googleapis.com?project=your-project-name
+  https://console.cloud.google.com/apis/library/sheets.googleapis.com?project=your-project-name
+
+  In order to set up a Google service account, you must first [create a project
+  on Google Cloud](https://console.cloud.google.com/welcome) to link the service account to. Even though the sheet you create won't
+  be a part of this project, service accounts must be created in this way. Then, navigate to
+  IAM & Admin -> Service Accounts from the sidebar. This should be found at
+  https://console.cloud.google.com/iam-admin/serviceaccounts?project=your-project-name
+
+  When you are [creating the service account,](https://docs.cloud.google.com/iam/docs/service-accounts-create)
+  it will record an email based on the name you give it and the project ID of your project. **This is the
+  email that you will share on any sheet (or any folder containing sheets) that you would like it to make edits
+  on.** Your service account won't need any extra permissions, just the project API access you
+  configured earlier.
+
+  Then, when you have created your service account, go to Keys -> Add Key -> Create new key 
+  -> JSON. This is the file that you will set a path to for
+  ```GOOGLE_APPLICATION_CREDENTIALS``` in your environment file. Please keep that
+  JSON file somewhere safe and don't share it.
+
+  When you upload a crosstab job to Google Sheets, you will need the Sheets ID of something
+  already shared to your service account, and the name of the tab the script
+  should write your output to.
+  
+
 You do not need to run `source .env` — `crosstab` loads it
 automatically (via `python-dotenv`) the moment you run any subcommand, as
 long as `.env` is in your current directory. `.env` is already
