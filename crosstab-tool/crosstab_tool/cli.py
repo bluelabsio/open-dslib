@@ -1,26 +1,53 @@
 """Entry point: `crosstab run path/to/job.yaml`"""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import click
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from pydantic import ValidationError
 
 from crosstab_tool.compute.cross_column import apply_cross_column, resolve_column_name
 from crosstab_tool.config.loader import load_job_config
 from crosstab_tool.config.schema import OutputDestination
 from crosstab_tool.metadata.run_metadata import build_run_metadata, write_run_artifacts
+from crosstab_tool.output.base import drop_hidden
 from crosstab_tool.output.files import FileWriter
 from crosstab_tool.output.sheets import GoogleSheetsWriter
 from crosstab_tool.query.builder import build_query, expected_result_columns
 from crosstab_tool.query.identifiers import SQLGenerationError
 from crosstab_tool.sources.redshift import RedshiftSource
 
+# crosstab-tool/ repo root (parent of this crosstab_tool/ package directory) --
+# added to sys.path below so `custom_functions/` (the shared, git-tracked
+# library of custom cross_column functions) is importable via a dotted path
+# like "custom_functions.ratios:divide" without the user having to set
+# PYTHONPATH themselves. A private, one-off function can still live outside
+# this repo and be reached via PYTHONPATH the usual way.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _find_env_file() -> str | None:
+    """Locate a `.env` to load: search the cwd and its parent directories
+    first (`find_dotenv(usecwd=True)` walks upward until it finds one),
+    then fall back to `~/.env`. Lets credentials live at a repo root or in
+    the user's home directory instead of requiring `.env` to sit in
+    whatever directory `crosstab` happens to be invoked from."""
+    env_path = find_dotenv(usecwd=True)
+    if env_path:
+        return env_path
+    home_env = Path.home() / ".env"
+    return str(home_env) if home_env.exists() else None
+
 
 @click.group()
 def cli():
-    load_dotenv()
+    env_path = _find_env_file()
+    if env_path:
+        load_dotenv(env_path)
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
 
 
 @cli.command()
@@ -98,12 +125,13 @@ def run(config_path: str):
     config = load_job_config(config_path)
     sql = build_query(config)
 
-    source_cfg = next(s for s in config.sources if s.name == config.base.from_)
-    source = RedshiftSource(name=source_cfg.name, connection=source_cfg.connection)
+    source = RedshiftSource(name=config.job.name, connection=config.connection)
     df = source.execute(sql)
 
     for cc in config.cross_column:
         df[cc.name] = apply_cross_column(df, cc)
+
+    df = drop_hidden(df, config)
 
     writer = (
         GoogleSheetsWriter(config.output)

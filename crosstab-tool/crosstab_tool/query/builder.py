@@ -134,11 +134,19 @@ def build_query(config: JobConfig) -> str:
     )
 
 
+def column_output_names(col: ColumnRef, default_aggregations: list) -> list[str]:
+    """The result-column name(s) a single score/counterfactual produces --
+    one `f"{agg}_{col.name}"` per aggregation applied to it (its own
+    `aggregations` override, or the job-level default). Mirrors
+    `_agg_selects` exactly, without generating any SQL."""
+    aggs = col.aggregations or default_aggregations
+    return [f"{agg.value}_{col.name}" for agg in aggs]
+
+
 def expected_result_columns(config: JobConfig) -> list[str]:
     """The column names `build_query(config)`'s SQL would actually produce:
-    category, level, count, plus one `f"{agg}_{name}"` per requested
-    aggregation on each score/counterfactual -- mirrors `_agg_selects`
-    exactly, without generating any SQL.
+    category, level, count, plus `column_output_names(...)` for each
+    score/counterfactual.
 
     Used by `cli.py`'s `validate` command to check `cross_column.inputs`
     resolve against real output columns before a job ever runs against
@@ -146,6 +154,5 @@ def expected_result_columns(config: JobConfig) -> list[str]:
     """
     columns = ["category", "level", "count"]
     for col in [*config.scores, *config.counterfactuals]:
-        aggs = col.aggregations or config.aggregations.default
-        columns.extend(f"{agg.value}_{col.name}" for agg in aggs)
+        columns.extend(column_output_names(col, config.aggregations.default))
     return columns

@@ -16,7 +16,8 @@ class RunMetadata:
     model_version: str
     run_timestamp: str
     config_hash: str
-    notes: str | None = None
+    job_notes: str | None = None  # from job.notes
+    notes: str | None = None  # from run_metadata.notes
     sql_path: str | None = None  # set by write_run_artifacts if SQL was saved
 
     def to_dict(self) -> dict:
@@ -30,6 +31,7 @@ def build_run_metadata(config: JobConfig, config_raw_text: str) -> RunMetadata:
         model_version=config.job.model_version,
         run_timestamp=datetime.now(timezone.utc).isoformat(),
         config_hash=config_hash,
+        job_notes=config.job.notes,
         notes=config.run_metadata.notes,
     )
 

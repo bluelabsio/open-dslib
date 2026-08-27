@@ -29,8 +29,10 @@ class AggFunction(str, Enum):
 
 
 class CrossColumnOp(str, Enum):
+    ADD = "add"
     DIFFERENCE = "difference"
     MULTIPLY = "multiply"
+    DIVIDE = "divide"
     CUSTOM = "custom"
     # Reserved, not implemented in v1 (Req 4.4 + Section 6/7): stubbed here
     # so the config schema doesn't need a breaking change when significance
@@ -57,14 +59,14 @@ class OutputDestination(str, Enum):
 
 
 class DataSourceConfig(BaseModel):
-    """One named, queryable source (Req 4.1). `connection` is an env-var
-    prefix — mirrors open-dslib's EngineContext pattern, e.g.
-    `connection: REDSHIFT_MAIN` reads REDSHIFT_MAIN_USER/_PW/_HOST/_DB/_PORT.
-    """
+    """One named, queryable source (Req 4.1). All sources in a job share
+    the job's single `connection` (JobConfig.connection) — the generated
+    SQL always runs as one query over one connection, so there's nowhere
+    a per-source connection could actually be used; see the note on
+    JobConfig.connection."""
 
     name: str
     type: SourceType = SourceType.REDSHIFT
-    connection: str
     table: str | None = None
     query: str | None = None  # raw SQL escape hatch instead of `table`
 
@@ -113,6 +115,11 @@ class ColumnRef(BaseModel):
     kind: Literal["numeric", "categorical"] = "numeric"
     aggregations: list[AggFunction] | None = None  # overrides job-level default
     custom_aggregations: list[str] = Field(default_factory=list)  # dotted paths
+    hidden: bool = False  # compute (and remain usable as a cross_column input) but
+    # drop from the written output -- for intermediate columns (e.g. a row-level
+    # product needed only to feed a weighted-average cross_column) that aren't
+    # meant to be read directly. Still fully computed in SQL either way; this
+    # only affects what output/*.py's Writer actually writes.
 
 
 class GroupingVariable(BaseModel):
@@ -124,7 +131,6 @@ class GroupingVariable(BaseModel):
     label: str  # e.g. "01 Age" — numbering controls ORDER BY 1, 2
     column: str
     source: str | None = None  # which DataSourceConfig it lives in; None => base.from_
-    include_topline: bool | None = None  # None => inherit job-level default
 
 
 class CrossColumnConfig(BaseModel):
@@ -196,7 +202,7 @@ class RunMetadataConfig(BaseModel):
 
 class JobMeta(BaseModel):
     name: str
-    model_version: str  # e.g. "p_support_v3_20260416" (Req 4.6 identifier)
+    model_version: str  # e.g. "m3", "v2" (Req 4.6 identifier)
     notes: str | None = None
 
 
@@ -205,12 +211,17 @@ class JobConfig(BaseModel):
     YAML/JSON file, and the only input the rest of the tool needs."""
 
     job: JobMeta
+    connection: str  # env-var prefix shared by every source, e.g. "REDSHIFT_MAIN" ->
+    # reads REDSHIFT_MAIN_USER/_PW/_HOST/_DB/_PORT. One job = one connection: the
+    # generated SQL (base + every join) always runs as a single query over a single
+    # connection (see cli.py's `run` command), so this lives at the job level rather
+    # than being repeated per source.
     sources: list[DataSourceConfig]
     base: BaseConfig
     scores: list[ColumnRef]
     counterfactuals: list[ColumnRef] = Field(default_factory=list)
     grouping_variables: list[GroupingVariable]
-    include_topline: bool = True  # job-level default for GroupingVariable.include_topline
+    include_topline: bool = True  # whether the SQL builder adds an automatic "Topline" row
     aggregations: AggregationDefaults = Field(default_factory=AggregationDefaults)
     cross_column: list[CrossColumnConfig] = Field(default_factory=list)
     output: OutputConfig

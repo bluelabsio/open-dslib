@@ -25,8 +25,10 @@ from crosstab_tool.config.schema import CrossColumnConfig, CrossColumnOp
 from crosstab_tool.query.registry import resolve
 
 _BUILTIN_OPS = {
+    CrossColumnOp.ADD: lambda a, b: a + b,
     CrossColumnOp.DIFFERENCE: lambda a, b: a - b,
     CrossColumnOp.MULTIPLY: lambda a, b: a * b,
+    CrossColumnOp.DIVIDE: lambda a, b: a / b,
 }
 
 

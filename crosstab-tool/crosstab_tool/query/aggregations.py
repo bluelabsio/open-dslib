@@ -11,7 +11,7 @@ from crosstab_tool.config.schema import AggFunction
 _SQL_TEMPLATES = {
     AggFunction.MEAN: "AVG(CAST({col} AS DOUBLE PRECISION))",
     AggFunction.COUNT: "COUNT({col})",
-    AggFunction.FREQUENCY: "COUNT({col})::FLOAT / NULLIF(COUNT(*) OVER (), 0)",
+    AggFunction.FREQUENCY: "COUNT(*)::FLOAT / SUM(COUNT(*)) OVER ()",
     AggFunction.SUM: "SUM({col})",
     AggFunction.MIN: "MIN({col})",
     AggFunction.MAX: "MAX({col})",

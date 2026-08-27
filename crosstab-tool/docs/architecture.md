@@ -27,7 +27,7 @@ crosstab-tool/
       aggregations.py             # AggFunction -> SQL fragment (Req 4.3)
       registry.py                  # dotted-path custom function resolution (Req 4.2/4.3/4.4)
     compute/
-      cross_column.py              # difference/multiply/custom over the aggregated result (Req 4.4)
+      cross_column.py              # add/difference/multiply/divide/custom over the aggregated result (Req 4.4)
     output/
       base.py                       # Writer interface (Req 4.5, 5.3)
       sheets.py                      # Google Sheets (primary destination)
@@ -65,7 +65,7 @@ Each module maps to one requirements section so a reviewer can trace
 3. `sources/redshift.py` executes that SQL and returns the small,
    already-aggregated result as a DataFrame — never the full base table.
 4. `compute/cross_column.py` applies any configured difference/
-   multiply/custom operations to that small result.
+   add/multiply/divide/custom operations to that small result.
 5. `output/{sheets,files}.py` writes it to Google Sheets (default) or
    CSV/Excel.
 6. `metadata/run_metadata.py` stamps the run with a timestamp, a hash of
@@ -90,7 +90,7 @@ definitions and validation rules):
 | `scores` / `counterfactuals` | numeric or categorical columns to summarize — Req 2.1, 4.2 |
 | `grouping_variables` | numbered `label` (controls row order) + `column`; topline is automatic |
 | `aggregations.default` | mean/count/frequency/sum/min/max/median; per-column override; `custom_functions` for dotted-path callables — Req 4.3 |
-| `cross_column` | difference/multiply/custom (+ reserved `ttest`/`chi_square` for later) — Req 4.4 |
+| `cross_column` | add/difference/multiply/divide/custom (+ reserved `ttest`/`chi_square` for later) — Req 4.4 |
 | `output` | destination (`google_sheets`/`csv`/`excel`), target, `layout: long\|wide` — Req 4.5 |
 | `run_metadata` | opt in/out of metadata capture (`capture`), whether to save the exact executed SQL (`save_sql`), where run artifacts land (`artifacts_dir`, default `"runs"`), free-text notes — Req 4.6 |
 
