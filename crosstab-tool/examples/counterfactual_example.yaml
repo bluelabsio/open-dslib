@@ -1,0 +1,92 @@
+# Reference/teaching example -- demonstrates two things
+# `model3_universe_tabs.yaml` doesn't:
+#   1. a `query` source (the raw-SQL escape hatch instead of `table`,
+#      used here to alias a column and drop nulls before the join)
+#   2. a counterfactual compared against the score via a built-in
+#      cross_column `difference`
+#
+# Table/column names below are illustrative, modeled after
+# model3_universe_tabs.yaml's real tables but with a fictional "prior
+# score" table standing in for whatever a real prior-model comparison
+# would use -- this file exists to be read and adapted, not run as-is.
+# See crosstab-config-wizard/references/config_reference.md for the full
+# field-by-field reference this example is meant to accompany.
+
+job:
+  name: counterfactual_example
+  model_version: v3
+  notes: >
+    Reference example for the crosstab-config-wizard skill and anyone
+    writing a config by hand -- shows a `query` source and a
+    cross_column difference against a counterfactual.
+
+connection: REDSHIFT_MAIN
+
+sources:
+  - name: scores
+    type: redshift
+    table: modeling.tfp_plain_language_support_score_20260416
+  - name: basetable
+    type: redshift
+    table: modeling.tfp_modeling_basetable_20260622
+  - name: prior_scores
+    type: redshift
+    # `query` is the escape hatch used instead of `table` whenever a
+    # source needs a filter, a derived/renamed column, or anything else
+    # a plain table reference can't express.
+    query: >
+      SELECT voterbase_id, p_support AS p_support_prior
+      FROM modeling.tfp_plain_language_support_score_20260101
+      WHERE p_support IS NOT NULL
+
+base:
+  from: basetable
+  joins:
+    - source: scores
+      key: voterbase_id
+      how: left
+    - source: prior_scores
+      key: voterbase_id
+      how: left
+
+scores:
+  - name: p_support
+    source: scores
+    column: p_support
+
+counterfactuals:
+  - name: p_support_prior
+    source: prior_scores
+    column: p_support_prior
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full
+    source: basetable
+  - label: "02 Female"
+    column: tsmart_female
+    source: basetable
+
+aggregations:
+  default: [mean]
+
+cross_column:
+  - name: p_support_delta
+    op: difference
+    # `inputs` reference the bare score/counterfactual `name`s above, not
+    # column names or aggregated column names -- see
+    # references/config_reference.md's note on this.
+    inputs: [p_support, p_support_prior]
+
+output:
+  destination: csv
+  layout: long
+  path: "output/counterfactual_example.csv"
+
+run_metadata:
+  capture: true
+  save_sql: true
+  artifacts_dir: "runs"
+  notes: "Reference example -- not a real production job, don't run as-is"

@@ -1,0 +1,100 @@
+# Reproduces the existing hand-written "m3 Universe Tabs" SQL
+# (Requirements Doc v0.2, Appendix A) as a config-driven job.
+#
+# Grouping column names below are confirmed against the actual
+# modeling.tfp_modeling_basetable_20260622 schema.
+
+job:
+  name: model3_universe_tabs
+  model_version: tfp_plain_language_support_score_20260416
+  notes: >
+    Config-driven generalization of the existing bespoke Model 3
+    Universe Tabs SQL. Grouping variables and ordering mirror Appendix A.
+
+connection: REDSHIFT_MAIN
+
+sources:
+  - name: scores
+    type: redshift
+    table: modeling.tfp_plain_language_support_score_20260416
+  - name: basetable
+    type: redshift
+    table: modeling.tfp_modeling_basetable_20260622
+
+base:
+  from: basetable
+  joins:
+    - source: scores
+      key: voterbase_id
+      how: left
+
+scores:
+  - name: p_support
+    source: scores
+    column: p_support
+  - name: p_support_standardized
+    source: scores
+    column: p_support_standardized
+
+counterfactuals: []
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full
+    source: basetable
+  - label: "02 Female"
+    column: tsmart_female
+    source: basetable
+  - label: "03 Ethnicity"
+    column: combined_ethnicity_4way
+    source: basetable
+  - label: "04 Education Modeled"
+    column: education_modeled
+    source: basetable
+  - label: "05 Education Area"
+    column: education_area_type
+    source: basetable
+  - label: "06 Income"
+    column: income_bucket_full
+    source: basetable
+  - label: "07 Urbanicity"
+    column: reg_nyt_urbanicity
+    source: basetable
+  - label: "08 CO Region"
+    column: co_region_4
+    source: basetable
+  - label: "09 Party"
+    column: combined_party
+    source: basetable
+  - label: "10 Is Married"
+    column: is_married
+    source: basetable
+  - label: "11 Is Homeowner"
+    column: is_home_owner
+    source: basetable
+  - label: "12 2020 Vote Method"
+    column: vote_method_combined_2020_gen_ts_vrvh
+    source: basetable
+  - label: "13 2024 Vote Method"
+    column: vote_method_combined_2024_gen_ts_vrvh
+    source: basetable
+aggregations:
+  default: [mean, count]
+
+cross_column: []
+
+output:
+  #destination: csv
+  #path: "output/model3_universe_tabs_v2.csv"
+  #layout: long
+  destination: google_sheets              # switch if sheet is shared with the service account
+  spreadsheet_id: "1njsv30tg75dkxALnMVck-VV-aI1lwaQSYLqc6NEipcc"
+  tab: "m3 Universe Tabs"
+
+run_metadata:
+  capture: true
+  save_sql: true          # writes the exact executed SQL to <artifacts_dir>/<timestamp>_<job_name>.sql
+  artifacts_dir: "runs"   # where per-run metadata JSON (+ saved SQL) lands; default is "runs"
+  notes: "Reproduces Appendix A reference SQL via config"
