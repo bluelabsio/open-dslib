@@ -11,7 +11,9 @@ dependencies = [
     "psycopg2-binary",
     "certifi",
     "pandas",
-    "gspread",
+    "gspread>=6.2,<7",  # output/sheets.py's Worksheet.update() call is written
+                        # against the v6 argument order/signature; a v7 API
+                        # change could silently break it (see test_sheets.py)
     "google-auth",
     "openpyxl",  # needed by output/files.py's Excel writer
     "click",
