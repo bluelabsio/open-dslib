@@ -12,9 +12,9 @@ _BASE_YAML = """
 job:
   name: {name}
   model_version: v1
+connection: REDSHIFT_MAIN
 sources:
   - name: base
-    connection: REDSHIFT_MAIN
     table: schema.tbl
 base:
   from: base

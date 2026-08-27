@@ -7,30 +7,26 @@ job:
   name: merge_tester
   model_version: v1
 
+connection: REDSHIFT_MAIN
+
 sources:
   - name: base_frame
     type: redshift
-    connection: REDSHIFT_MAIN
     table: modeling_snapshots.modeling_frame_pol_20260312
   - name: amazon_infl
     type: redshift
-    connection: REDSHIFT_MAIN
     table: amazon.int_person_amazon_infl_scores_joined_20250114
   - name: harris_2024
     type: redshift
-    connection: REDSHIFT_MAIN
     table: c_ambridge.harris_2024_combined_final_adjusted_scores
   - name: dscc_2022
     type: redshift
-    connection: REDSHIFT_MAIN
     table: c_dscc2024.dscc_scores_2022
   - name: paramount_intent
     type: redshift
-    connection: REDSHIFT_MAIN
     table: c_paramount.tg_intent_scores
   - name: sustainability
     type: redshift
-    connection: REDSHIFT_MAIN
     table: c_sustainability.sustainability_scores_20250812
 
 base:

@@ -19,7 +19,8 @@ from crosstab_tool.query.identifiers import SQLGenerationError, check_identifier
 def _minimal_config(**overrides) -> JobConfig:
     defaults = dict(
         job=JobMeta(name="t", model_version="v1"),
-        sources=[DataSourceConfig(name="base", connection="REDSHIFT_MAIN", table="schema.tbl")],
+        connection="REDSHIFT_MAIN",
+        sources=[DataSourceConfig(name="base", table="schema.tbl")],
         base=BaseConfig(**{"from": "base"}),
         scores=[ColumnRef(name="p_support", source="base", column="p_support")],
         grouping_variables=[GroupingVariable(label="01 Age", column="age_bucket")],
@@ -63,7 +64,6 @@ def test_malicious_table_name_rejected():
         sources=[
             DataSourceConfig(
                 name="base",
-                connection="REDSHIFT_MAIN",
                 table="tbl; DROP TABLE voterfile; --",
             )
         ]
@@ -77,8 +77,8 @@ def test_malicious_join_key_rejected():
 
     config = _minimal_config(
         sources=[
-            DataSourceConfig(name="base", connection="REDSHIFT_MAIN", table="schema.tbl"),
-            DataSourceConfig(name="scores", connection="REDSHIFT_MAIN", table="schema.scores"),
+            DataSourceConfig(name="base", table="schema.tbl"),
+            DataSourceConfig(name="scores", table="schema.scores"),
         ],
         base=BaseConfig(
             **{"from": "base"},
@@ -123,7 +123,6 @@ def test_raw_query_escape_hatch_is_not_identifier_checked():
         sources=[
             DataSourceConfig(
                 name="base",
-                connection="REDSHIFT_MAIN",
                 query="SELECT * FROM schema.tbl WHERE active = true",
             )
         ]

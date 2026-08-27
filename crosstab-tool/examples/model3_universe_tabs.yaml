@@ -11,14 +11,14 @@ job:
     Config-driven generalization of the existing bespoke Model 3
     Universe Tabs SQL. Grouping variables and ordering mirror Appendix A.
 
+connection: REDSHIFT_MAIN
+
 sources:
   - name: scores
     type: redshift
-    connection: REDSHIFT_MAIN
     table: modeling.tfp_plain_language_support_score_20260416
   - name: basetable
     type: redshift
-    connection: REDSHIFT_MAIN
     table: modeling.tfp_modeling_basetable_20260622
 
 base:

@@ -42,6 +42,24 @@ def test_multiply_resolves_against_mean_columns():
     assert result.iloc[0] == pytest.approx(0.62 * 0.55)
 
 
+def test_add_resolves_against_mean_columns():
+    df = _sample_df()
+    cc = CrossColumnConfig(
+        name="total", op=CrossColumnOp.ADD, inputs=["p_support_v5", "p_support_v4"]
+    )
+    result = apply_cross_column(df, cc)
+    assert result.iloc[0] == pytest.approx(0.62 + 0.55)
+
+
+def test_divide_resolves_against_mean_columns():
+    df = _sample_df()
+    cc = CrossColumnConfig(
+        name="ratio", op=CrossColumnOp.DIVIDE, inputs=["p_support_v5", "p_support_v4"]
+    )
+    result = apply_cross_column(df, cc)
+    assert result.iloc[0] == pytest.approx(0.62 / 0.55)
+
+
 def test_bare_column_still_preferred_when_present():
     # If a bare column genuinely exists (e.g. a custom aggregation wrote one
     # directly), it should be used as-is rather than forcing mean_ lookup.

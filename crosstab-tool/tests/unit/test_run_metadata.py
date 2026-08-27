@@ -25,6 +25,20 @@ def test_write_run_artifacts_saves_sql_and_metadata(tmp_path):
     assert "CREATE TEMP TABLE base AS" in sql_path.read_text()
 
 
+def test_job_notes_and_run_metadata_notes_are_distinct():
+    # Regression test: job.notes used to be silently dropped -- only
+    # run_metadata.notes ever made it into the written metadata. Both
+    # should now appear, under different keys.
+    config = load_job_config(EXAMPLES / "counterfactual_example.yaml")
+    meta = build_run_metadata(config, "irrelevant raw text")
+
+    assert meta.job_notes == config.job.notes
+    assert meta.notes == config.run_metadata.notes
+    assert meta.job_notes != meta.notes
+    assert meta.job_notes is not None
+    assert meta.notes is not None
+
+
 def test_write_run_artifacts_without_sql(tmp_path):
     config = load_job_config(EXAMPLES / "model3_universe_tabs.yaml")
     meta = build_run_metadata(config, "irrelevant raw text")

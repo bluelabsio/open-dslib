@@ -25,9 +25,11 @@ def test_model3_universe_tabs_query_shape():
     # materialized once via CREATE TEMP TABLE rather than a WITH CTE (a CTE
     # would be re-inlined -- and its joins re-run -- for every UNION ALL block)
     assert "CREATE TEMP TABLE base AS" in sql
-    assert "FROM modeling.tfp_plain_language_support_score_20260416 AS scores" in sql
+    # basetable is the base FROM (defines the population), scores is left-joined in --
+    # the recommended convention per config_reference.md's note on `base.from`
+    assert "FROM modeling.tfp_modeling_basetable_20260622 AS basetable" in sql
     assert (
-        "LEFT JOIN modeling.tfp_modeling_basetable_20260622 AS basetable "
+        "LEFT JOIN modeling.tfp_plain_language_support_score_20260416 AS scores "
         "USING(voterbase_id)" in sql
     )
     # base table selects only the columns scores/counterfactuals/grouping
@@ -64,17 +66,52 @@ def test_model3_universe_tabs_query_shape():
 
 
 def test_counterfactual_cross_column_example_loads():
-    # counterfactuals/cross_column are commented out in this fixture: its
-    # `p_support_v3` placeholder column doesn't exist on the real table, and
-    # nothing here currently exercises the counterfactual/cross_column
-    # feature end-to-end -- see git history for the previously-asserted shape
-    # once a real "prior model" column is identified.
     config = load_job_config(EXAMPLES / "counterfactual_example.yaml")
-    assert config.counterfactuals == []
-    assert config.cross_column == []
+    assert [c.name for c in config.counterfactuals] == ["p_support_prior"]
+    assert [cc.name for cc in config.cross_column] == ["p_support_delta"]
+    assert config.cross_column[0].inputs == ["p_support", "p_support_prior"]
 
     sql = build_query(config)
-    assert "mean_p_support_prior" not in sql
+    # the `query` source is wrapped as a derived table, not identifier-checked
+    assert "(SELECT voterbase_id, p_support AS p_support_prior" in sql
+    assert "AVG(CAST(p_support_prior AS DOUBLE PRECISION)) AS mean_p_support_prior" in sql
+
+
+def test_custom_cross_column_example_loads_and_resolves():
+    import sys
+
+    config = load_job_config(EXAMPLES / "custom_cross_column_example.yaml")
+    assert config.scores == []
+    assert [c.name for c in config.counterfactuals] == ["p_support_x_weight", "weight"]
+    assert all(c.hidden for c in config.counterfactuals)
+    cc = config.cross_column[0]
+    assert cc.name == "weighted_avg_p_support_pct"
+    assert cc.function == "custom_cross_column_functions:weighted_average_pct"
+
+    sql = build_query(config)
+    assert "AVG(CAST(p_support_x_weight AS DOUBLE PRECISION)) AS mean_p_support_x_weight" in sql
+    assert "AVG(CAST(weight AS DOUBLE PRECISION)) AS mean_weight" in sql
+
+    # the custom function itself must actually import and compute correctly --
+    # `crosstab validate` only checks that `inputs` resolve to real column
+    # names, never that the function imports or runs (see the postmortem in
+    # compute/cross_column.py's docstring), so exercise it directly here.
+    sys.path.insert(0, str(EXAMPLES))
+    try:
+        import pandas as pd
+
+        from crosstab_tool.compute.cross_column import apply_cross_column
+        from crosstab_tool.output.base import drop_hidden
+
+        df = pd.DataFrame({"mean_p_support_x_weight": [0.42], "mean_weight": [0.6]})
+        result = apply_cross_column(df, cc)
+        assert result.iloc[0] == pytest.approx(70.0)
+
+        df["weighted_avg_p_support_pct"] = result
+        out = drop_hidden(df, config)
+        assert list(out.columns) == ["weighted_avg_p_support_pct"]
+    finally:
+        sys.path.remove(str(EXAMPLES))
 
 
 def test_bad_config_rejected(tmp_path):
@@ -82,8 +119,9 @@ def test_bad_config_rejected(tmp_path):
     bad.write_text(
         """
 job: {name: bad, model_version: v1}
+connection: REDSHIFT_MAIN
 sources:
-  - {name: scores, connection: REDSHIFT_MAIN, table: foo.bar}
+  - {name: scores, table: foo.bar}
 base: {from: scores}
 scores:
   - {name: p_support, source: DOES_NOT_EXIST, column: p_support}

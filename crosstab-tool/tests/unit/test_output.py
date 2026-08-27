@@ -3,8 +3,17 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from crosstab_tool.config.schema import OutputConfig, OutputDestination
-from crosstab_tool.output.base import shaped, to_wide
+from crosstab_tool.config.schema import (
+    BaseConfig,
+    ColumnRef,
+    DataSourceConfig,
+    GroupingVariable,
+    JobConfig,
+    JobMeta,
+    OutputConfig,
+    OutputDestination,
+)
+from crosstab_tool.output.base import drop_hidden, shaped, to_wide
 from crosstab_tool.output.files import FileWriter
 
 
@@ -59,6 +68,57 @@ def test_file_writer_excel(tmp_path):
     assert out_path.exists()
     written = pd.read_excel(out_path, sheet_name="results")
     assert len(written) == 2
+
+
+def _config_with_hidden(**score_overrides) -> JobConfig:
+    return JobConfig(
+        job=JobMeta(name="t", model_version="v1"),
+        connection="REDSHIFT_MAIN",
+        sources=[DataSourceConfig(name="base", table="schema.tbl")],
+        base=BaseConfig(**{"from": "base"}),
+        scores=[
+            ColumnRef(name="p_support", source="base", column="p_support"),
+            ColumnRef(
+                name="p_support_x_weight",
+                source="base",
+                column="p_support_x_weight",
+                **score_overrides,
+            ),
+        ],
+        grouping_variables=[GroupingVariable(label="01 Age", column="age_bucket")],
+        aggregations={"default": ["mean"]},
+        output=OutputConfig(destination=OutputDestination.CSV, path="/tmp/x.csv"),
+    )
+
+
+def test_drop_hidden_removes_only_flagged_columns():
+    config = _config_with_hidden(hidden=True)
+    df = pd.DataFrame(
+        {
+            "category": ["00 Topline"],
+            "level": ["Topline"],
+            "count": [100],
+            "mean_p_support": [0.55],
+            "mean_p_support_x_weight": [0.21],
+        }
+    )
+    out = drop_hidden(df, config)
+    assert list(out.columns) == ["category", "level", "count", "mean_p_support"]
+
+
+def test_drop_hidden_is_a_no_op_when_nothing_hidden():
+    config = _config_with_hidden(hidden=False)
+    df = pd.DataFrame(
+        {
+            "category": ["00 Topline"],
+            "level": ["Topline"],
+            "count": [100],
+            "mean_p_support": [0.55],
+            "mean_p_support_x_weight": [0.21],
+        }
+    )
+    out = drop_hidden(df, config)
+    assert list(out.columns) == list(df.columns)
 
 
 def test_file_writer_rejects_sheets_destination(tmp_path):

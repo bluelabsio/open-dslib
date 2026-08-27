@@ -1,15 +1,22 @@
 job:
   name: <string>                # identifier for this job
-  model_version: <string>       # e.g. "p_support_v3_20260416" — what score this run is against
-  notes: <string, optional>
+  model_version: <string>       # e.g. "m3", "v2" — what score this run is against
+  notes: <string, optional>     # written into the run's JSON metadata as `job_notes` (distinct
+  # from run_metadata.notes below, written as `notes`) — full field-by-field prose explanations
+  # of every field in this file live in crosstab-config-wizard/references/config_reference.md
+
+connection: <string>          # env-var prefix, e.g. "REDSHIFT_MAIN" -> reads
+# REDSHIFT_MAIN_{USER,PW,HOST,DB,PORT}. One job = one connection: the whole generated query
+# (base + every join) always runs as a single SQL string over a single connection, so this is
+# a job-level field rather than repeated per source below.
 
 sources:
   - name: <string>               # local name you reference elsewhere in this file
     type: redshift                # only "redshift" is implemented today
-    connection: <string>           # env-var prefix, e.g. "REDSHIFT_MAIN" -> reads
-    # REDSHIFT_MAIN_{USER,PW,HOST,DB,PORT}
     table: <schema.table>           # exactly one of `table` or `query`
-    # query: <raw SQL>                # escape hatch instead of `table`
+    # query: <raw SQL>                # escape hatch instead of `table` — e.g. to add a WHERE
+    # filter, a derived/renamed column, etc. See examples/counterfactual_example.yaml for a
+    # full worked example of a `query` source.
 
 base:
   from: <source name>            # which of the `sources` above is the base — default to the
@@ -20,12 +27,16 @@ base:
       how: left                       # left | inner | right | full (default: left)
 
 scores:
-  - name: <string>                # output name, e.g. "p_support"
+  - name: <string>                # output name, e.g. "p_support" — used as a SQL alias, so it
+    # must be a valid identifier (letters/digits/underscores, no spaces)
     source: <source name>            # which source this column lives in
     column: <string>                  # actual column name in that source
-    kind: numeric                      # numeric | categorical (default: numeric)
+    kind: numeric                      # numeric | categorical (default: numeric) — NOT YET
+    # IMPLEMENTED: accepted but nothing reads it; setting it changes no behavior
     aggregations: [mean, count]          # optional — overrides the job-level default for this column
-    custom_aggregations: []               # optional — dotted paths, e.g. "myproj.aggs:trimmed_mean"
+    custom_aggregations: []               # NOT YET IMPLEMENTED — accepted but silently ignored
+    hidden: false                          # compute (and keep usable as a cross_column input) but
+    # drop from the written output — for intermediate columns not meant to be read directly
 
 counterfactuals: []               # same shape as `scores` — comparison columns (prior model, benchmark, etc.)
 
@@ -35,27 +46,36 @@ grouping_variables:
   - label: "01 Age"                # numbered category label — controls output ROW ORDER
     column: <string>                 # actual column name defining the group levels
     source: <source name>            # optional — which source the column lives in; omit for the base source
-    include_topline: null              # optional override of the job-level default; usually leave unset
 
 aggregations:
-  default: [mean, count]           # applied to every score/counterfactual unless overridden per-column
-  custom_functions: {}              # name -> "module.path:function" dotted-path registry
+  default: [mean, count]           # applied to every score/counterfactual unless overridden per-column.
+  # NOTE: a row COUNT(*) is *always* included automatically regardless of this list — `count`
+  # here adds a second, per-column count of non-null values, which most jobs don't need.
+  custom_functions: {}              # NOT YET IMPLEMENTED — accepted but silently ignored
 
 cross_column: []
   # - name: <string>
-  #   op: difference               # difference | multiply | custom | (reserved: ttest, chi_square)
+  #   op: difference               # add | difference | multiply | divide | custom | (reserved: ttest, chi_square)
   #   inputs: [<score/counterfactual name>, <score/counterfactual name>]
-  #   function: <dotted path>        # required only when op == custom
+  #   function: <dotted path>        # required only when op == custom — e.g.
+  #                                   # "custom_functions.ratios:percent_change" for a function in this
+  #                                   # repo's shared custom_functions/ package (on sys.path
+  #                                   # automatically, no PYTHONPATH needed) — check there first before
+  #                                   # writing a new one.
+  #                                   # This DOES work (unlike custom_aggregations/custom_functions
+  #                                   # above); see crosstab-config-wizard/SKILL.md's "Writing a custom
+  #                                   # cross-column function" section for the full requirements
 
 output:
   destination: google_sheets       # google_sheets | csv | excel
   spreadsheet_id: <string>          # required if destination == google_sheets
   tab: <string>                      # required if destination == google_sheets
-  layout: long                       # long (tidy, default) | wide (pivoted)
+  layout: long                       # long (tidy, default) | wide — NOTE: `wide` is currently a
+  # placeholder and produces output identical to `long`; no real pivot is implemented yet
   path: <string>                     # required if destination == csv or excel
 
 run_metadata:
   capture: true                    # whether to write any run metadata at all
   save_sql: true                    # also save the exact executed SQL (recommended — see below)
   artifacts_dir: "runs"              # where metadata JSON (+ saved SQL) is written
-  notes: <string, optional>
+  notes: <string, optional>          # written into the run's JSON metadata as `notes`
