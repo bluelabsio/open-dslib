@@ -1,0 +1,111 @@
+# Reference/teaching example -- demonstrates two things together:
+#   1. a `cross_column` entry that needs `op: custom` because it chains
+#      more than one operation (a weighted average expressed as a
+#      percentage -- a divide, then a multiply-by-100). A *plain* ratio
+#      wouldn't need this: use the built-in `op: divide` for that.
+#   2. `hidden: true` on the two intermediate counterfactuals it's built
+#      from -- they're fully computed and usable as cross_column inputs,
+#      just dropped from the written output, since nobody wants to read
+#      "p_support_x_weight" in a report
+#
+# Table/column names below are illustrative (a fictional survey-weight
+# column standing in for whatever a real weighting scheme would use) --
+# this file exists to be read and adapted, not run as-is. Try it with:
+#
+#   PYTHONPATH=examples crosstab validate examples/custom_cross_column_example.yaml
+#
+# The custom function it references lives at
+# examples/custom_cross_column_functions.py purely so this example is
+# self-contained. For a REAL BlueLabs job, prefer this repo's own
+# `custom_functions/` package instead (it's on `sys.path` automatically,
+# no PYTHONPATH needed) -- check there first for an existing function
+# before writing a new one. See crosstab-config-wizard/SKILL.md's
+# "Writing a custom cross-column function" section for the full
+# requirements either way.
+
+job:
+  name: custom_cross_column_example
+  model_version: v3
+  notes: >
+    Reference example for the crosstab-config-wizard skill and anyone
+    writing a config by hand -- shows a weighted-average-as-a-percentage
+    cross_column computed via a custom function (op: custom), and
+    hidden: true on its intermediate inputs.
+
+connection: REDSHIFT_MAIN
+
+sources:
+  - name: basetable
+    type: redshift
+    table: modeling.tfp_modeling_basetable_20260622
+  - name: weighted_scores
+    type: redshift
+    # A row-level product (score * weight) has to be computed before
+    # aggregation, so this is a `query` source rather than a plain
+    # `table` -- see examples/counterfactual_example.yaml for more on
+    # the `query` escape hatch itself.
+    query: >
+      SELECT voterbase_id,
+             p_support * survey_weight AS p_support_x_weight,
+             survey_weight AS weight
+      FROM modeling.tfp_plain_language_support_score_20260416
+
+base:
+  from: basetable
+  joins:
+    - source: weighted_scores
+      key: voterbase_id
+      how: left
+
+scores: []
+
+counterfactuals:
+  # These two are intermediate quantities, not meant to be read directly
+  # in the output -- they exist so the cross_column entry below can
+  # compute a weighted average from them. `hidden: true` computes and
+  # aggregates them as normal (and keeps them usable as cross_column
+  # inputs) but drops them from what actually gets written -- only
+  # `weighted_avg_p_support_pct` below shows up in the output. Both use
+  # `mean` (the job-level default), not `sum`: cross_column's bare-name
+  # resolution only has a `mean_` fallback (see the note on
+  # cross_column[].inputs in references/config_reference.md), and
+  # MEAN(a)/MEAN(b) == SUM(a)/SUM(b) whenever both are aggregated over
+  # the same rows, since the row count cancels -- so `mean` gets the
+  # same right answer without needing a `sum_` fallback that doesn't
+  # exist.
+  - name: p_support_x_weight
+    source: weighted_scores
+    column: p_support_x_weight
+    hidden: true
+  - name: weight
+    source: weighted_scores
+    column: weight
+    hidden: true
+
+include_topline: true
+
+grouping_variables:
+  - label: "01 Age"
+    column: age_bucket_full
+  - label: "02 Female"
+    column: tsmart_female
+
+aggregations:
+  default: [mean]
+
+cross_column:
+  - name: weighted_avg_p_support_pct
+    op: custom
+    function: "custom_cross_column_functions:weighted_average_pct"
+    inputs: [p_support_x_weight, weight]
+
+output:
+  destination: csv
+  layout: long
+  path: "output/custom_cross_column_example.csv"
+
+run_metadata:
+  capture: true
+  save_sql: true
+  artifacts_dir: "runs"
+  notes: "Reference example -- not a real production job, don't run as-is"

@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+/output/
+runs/
+configs/*
+!configs/.gitkeep
